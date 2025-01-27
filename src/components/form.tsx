@@ -43,10 +43,7 @@ type AuthFormProps = React.ComponentPropsWithoutRef<"div">;
 
 export function AuthForm({ className, ...props }: AuthFormProps) {
   const [isLogin, setIsLogin] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string>("");
-  const [loading, setLoading] = useState<boolean>(false);
 
-  // Initialize the form
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -57,23 +54,13 @@ export function AuthForm({ className, ...props }: AuthFormProps) {
   });
 
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
-    setErrorMessage("");
-    setLoading(true);
-
-    try {
-      const { error, data: d } = await supabase.auth[
-        isLogin ? "signInWithPassword" : "signUp"
-      ]({
-        email: data.email,
-        password: data.password,
-      });
-      console.log(d);
-      throw error;
-    } catch (error: any) {
-      setErrorMessage(error.message || "An error occurred. Please try again.");
-    } finally {
-      setLoading(false);
-    }
+    const { error } = await supabase.auth[
+      isLogin ? "signInWithPassword" : "signUp"
+    ]({
+      email: data.email,
+      password: data.password,
+    });
+    if (error) throw Error(error.message);
   };
 
   return (
@@ -161,14 +148,13 @@ export function AuthForm({ className, ...props }: AuthFormProps) {
                   />
                 )}
 
-                {/* Display Error Message */}
-                {errorMessage && (
-                  <p className="text-sm text-red-500">{errorMessage}</p>
-                )}
-
                 {/* Submit Button */}
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={form.formState.isLoading}
+                >
+                  {form.formState.isLoading
                     ? isLogin
                       ? "Logging in..."
                       : "Registering..."
