@@ -4,6 +4,7 @@ import {
   createContext,
   ReactNode,
   useContext,
+  useLayoutEffect,
 } from "react";
 import { jwtDecode } from "jwt-decode";
 import { supabase } from "./lib/supabaseClient";
@@ -34,7 +35,7 @@ export const WithUser = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [, setSession] = useState<Session | null>(null);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const saveSession = (session: Session | null) => {
       setSession(session);
 

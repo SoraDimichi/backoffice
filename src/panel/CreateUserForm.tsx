@@ -24,6 +24,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { supabase } from "@/lib/supabaseClient";
 import { RoleSelect } from "./RoleSelect";
+import { useEffect } from "react";
+import { AddUser } from ".";
 
 const userSchema = z.object({
   username: z.string().email({ message: "Invalid email address." }),
@@ -33,44 +35,38 @@ const userSchema = z.object({
   role: z.enum(["user", "admin"], { required_error: "Please select a role." }),
 });
 
-type CreateUserFormProps = React.ComponentPropsWithoutRef<"div">;
+type CreateUserFormProps = React.ComponentPropsWithoutRef<"div"> & {
+  addUser: AddUser;
+};
 type CreateUserP = z.infer<typeof userSchema>;
 
-export const createAdmin = async (id: string) => {
-  const values = { user_id: id, role: "admin" };
-  const { error, data } = await supabase.from("users").update(values);
+const createUser = async ({ username: email, ...p }: CreateUserP) => {
+  const { data, error } = await supabase.rpc("create_user", { email, ...p });
   if (error) throw Error(error.message);
+
   return data;
 };
 
-const createUser = async (p: CreateUserP) => {
-  const { username, password, role } = p;
-  const { data, error } = await supabase.auth.signUp({
-    email: username,
-    password,
-  });
-
-  if (error) throw Error(error.message);
-
-  if (role === "user") return data;
-
-  console.log(data.user);
-
-  return createAdmin(data.user.id);
-};
-
-export const CreateUserForm = ({
-  className,
-  ...props
-}: CreateUserFormProps) => {
+const CreateUserForm = (p: CreateUserFormProps) => {
+  const { className, addUser, ...props } = p;
   const form = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
     defaultValues: { username: "", password: "", role: "user" },
   });
 
-  const onSubmit = async (data: z.infer<typeof userSchema>) => {
-    await createUser(data);
-  };
+  const { setError, formState, watch, clearErrors } = form;
+  const { errors, isSubmitting, isLoading, isSubmitted } = formState;
+  const disabled = isSubmitting && isLoading && isSubmitted;
+
+  useEffect(() => {
+    const subscription = watch(() => "root" in errors && clearErrors("root"));
+    return () => subscription.unsubscribe();
+  }, [clearErrors, errors, watch]);
+
+  const onSubmit = async (data: z.infer<typeof userSchema>) =>
+    createUser(data)
+      .then((id) => addUser({ id, ...data }))
+      .catch((error) => setError("root", { message: error.message }));
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -92,6 +88,7 @@ export const CreateUserForm = ({
                       <FormControl>
                         <Input
                           type="email"
+                          disabled={disabled}
                           placeholder="m@example.com"
                           {...field}
                         />
@@ -103,6 +100,7 @@ export const CreateUserForm = ({
                 />
                 <FormField
                   control={form.control}
+                  disabled={disabled}
                   name="password"
                   render={({ field }) => (
                     <FormItem>
@@ -117,6 +115,7 @@ export const CreateUserForm = ({
                 />
                 <FormField
                   control={form.control}
+                  disabled={disabled}
                   name="role"
                   render={({ field }) => (
                     <FormItem>
@@ -131,11 +130,10 @@ export const CreateUserForm = ({
                     </FormItem>
                   )}
                 />
-                <Button
-                  disabled={form.formState.isLoading}
-                  type="submit"
-                  className="w-full"
-                >
+                <div className="text-red-500 text-sm h-2 text-center">
+                  {errors?.root?.message}
+                </div>
+                <Button disabled={disabled} type="submit" className="w-full">
                   Submit
                 </Button>
               </div>
@@ -146,3 +144,5 @@ export const CreateUserForm = ({
     </div>
   );
 };
+
+export { CreateUserForm };

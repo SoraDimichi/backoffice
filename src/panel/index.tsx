@@ -1,28 +1,23 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { Button } from "../components/ui/button";
-import { createAdmin, CreateUserForm } from "./CreateUserForm";
+import { CreateUserForm } from "./CreateUserForm";
 import { RoleSelect as RS } from "./RoleSelect";
 import { Boundary, useErrorBoundary } from "@/components/ui/Boundary";
 
-const deleteUser = async (id: string) => {
-  console.log(id);
-  const { data, error } = await supabase.from("users").delete().eq("id", id);
-  console.log(data);
+const deleteUser = async (user_id: string) => {
+  const { data, error } = await supabase.rpc("delete_user", { user_id });
   if (error) throw Error(error.message);
   return data;
 };
 
 const updateRole = async (value: string, id: string) => {
-  if (value === "user") {
-    const { error, data } = await supabase.from("users").delete().match({ id });
+  const { error } = await supabase
+    .from("users")
+    .update({ role: value })
+    .eq("id", id);
 
-    if (error) throw Error(error.message);
-
-    return data;
-  }
-
-  return createAdmin(id);
+  if (error) throw Error(error?.message);
 };
 
 const RoleSelectInner = (p: { role: string; id: string }) => {
@@ -46,13 +41,16 @@ const RoleSelect: typeof RoleSelectInner = (p) => (
   </Boundary>
 );
 
-const DeleteButtonInner = (p: { id: string }) => {
+type DeleteButtonInnerP = { id: string; unmount: () => void };
+const DeleteButtonInner = (p: DeleteButtonInnerP) => {
+  const { id, unmount } = p;
   const { showBoundary } = useErrorBoundary();
   const [loading, setLoading] = useState(false);
 
   const del = async () => {
     setLoading(true);
-    await deleteUser(p.id)
+    await deleteUser(id)
+      .then(unmount)
       .catch(showBoundary)
       .finally(() => setLoading(false));
   };
@@ -70,42 +68,67 @@ const DeleteButton: typeof DeleteButtonInner = (p) => (
   </Boundary>
 );
 
-export const AdminPanel = () => {
-  const [users, setUsers] = useState<any[]>([]);
+type UserP = { id: string; role: string; username: string };
+const User = ({ id, role, username }: UserP) => {
+  const [mounted, setMounted] = useState(true);
 
-  const getUsers = () =>
-    supabase
-      .from("users")
-      .select("*")
-      .then((r) => (r.data ? setUsers(r.data) : setUsers([])));
-
-  useEffect(() => {
-    getUsers();
-  }, []);
+  if (!mounted) return null;
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-xl font-bold">User Management</h2>
-        <div className="mt-4 grid grid-cols-1 md:grid-cols-1 gap-4">
-          {users?.map((userItem) => (
-            <div
-              key={userItem.id}
-              className="border p-4 mt-2 flex space-x-2 rounded"
-            >
-              <p className="font-semibold">{userItem.username}</p>
-              <RoleSelect id={userItem.user_id} role={userItem.role} />
-              <DeleteButton id={userItem.user_id} />
-            </div>
-          ))}
-        </div>
-      </div>
-      <PlusButton className={"self-center"} />
+    <div key={id} className="border p-4 mt-2 flex space-x-2 rounded">
+      <p className="font-semibold">{username}</p>
+      <RoleSelect id={id} role={role} />
+      <DeleteButton id={id} unmount={() => setMounted(false)} />
     </div>
   );
 };
 
-const PlusButton = ({ className }: { className: string }) => {
+const getUsers = async () => {
+  const { data, error } = await supabase.from("users").select();
+
+  if (error) throw Error(error.message);
+
+  return data;
+};
+
+type User = { id: string; role: string; username: string };
+type UsersInnerP = { users: User[]; setUsers: (users: User[]) => void };
+const UsersInner = ({ users, setUsers }: UsersInnerP) => {
+  const { showBoundary } = useErrorBoundary();
+
+  useEffect(() => {
+    getUsers().then(setUsers).catch(showBoundary);
+  }, [showBoundary, setUsers]);
+
+  return (
+    <div>
+      <h2 className="text-xl font-bold">User Management</h2>
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-1 gap-4">
+        {users?.map((item) => <User {...item} />)}
+      </div>
+    </div>
+  );
+};
+
+const Users: typeof UsersInner = (p) => (
+  <Boundary>
+    <UsersInner {...p} />
+  </Boundary>
+);
+export type AddUser = (user: User) => void;
+export const AdminPanel = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const addUser = (user: User) => setUsers((prev) => [...prev, user]);
+
+  return (
+    <div className="space-y-4">
+      <Users users={users} setUsers={setUsers} />
+      <PlusButton addUser={addUser} className={"self-center"} />
+    </div>
+  );
+};
+type PlusButtonP = { className: string; addUser: AddUser };
+const PlusButton = ({ className, addUser }: PlusButtonP) => {
   const [shown, setShowForm] = useState(false);
 
   return (
@@ -116,7 +139,7 @@ const PlusButton = ({ className }: { className: string }) => {
       >
         {shown ? "Close form" : "Create New User"}
       </Button>
-      {shown && <CreateUserForm />}
+      {shown && <CreateUserForm addUser={addUser} />}
     </>
   );
 };
