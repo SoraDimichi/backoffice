@@ -38,7 +38,7 @@ type CreateUserP = z.infer<typeof userSchema>;
 
 export const createAdmin = async (id: string) => {
   const values = { user_id: id, role: "admin" };
-  const { error, data } = await supabase.from("user_roles").insert(values);
+  const { error, data } = await supabase.from("users").update(values);
   if (error) throw Error(error.message);
   return data;
 };
@@ -55,7 +55,6 @@ const createUser = async (p: CreateUserP) => {
   if (role === "user") return data;
 
   console.log(data.user);
-  if (!data.user.id) throw new Error("User not created");
 
   return createAdmin(data.user.id);
 };

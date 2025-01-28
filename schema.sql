@@ -3,7 +3,7 @@ drop type if exists public.app_permission cascade;
 drop type if exists public.app_role cascade;
 
 -- Create the enums
-create type public.app_permission as enum ('users.delete', 'users.update', 'users.create', 'users.read');
+create type public.app_permission as enum ('users.all');
 create type public.app_role as enum ('admin', 'user');
 
 -- USERS
@@ -25,8 +25,6 @@ create table public.role_permissions (
   unique (role, permission)
 );
 comment on table public.role_permissions is 'Application permissions for each role.';
-
-
 
 
 -- Authorize with role-based access control (RBAC)
@@ -70,21 +68,9 @@ begin
 end;
 $$ language plpgsql security definer set search_path = auth, public;
 
--- Create new policies using the authorize function
-CREATE POLICY "Admin can read users" ON public.users FOR SELECT USING (public.authorize('users.read'));
-CREATE POLICY "Admin can create users" ON public.users FOR INSERT WITH CHECK (public.authorize('users.create'));
-CREATE POLICY "Admin can update users" ON public.users FOR UPDATE USING (public.authorize('users.update'));
-CREATE POLICY "Admin can delete users" ON public.users FOR DELETE USING (public.authorize('users.delete'));
-
+CREATE POLICY "Admin can everything" ON public.users FOR ALL USING (public.authorize('users.all'));
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
--- Grant all user-related permissions to the admin role
-INSERT INTO public.role_permissions (role, permission) VALUES
-  ('admin', 'users.read'),
-  ('admin', 'users.create'),
-  ('admin', 'users.update'),
-  ('admin', 'users.delete')
-  ON CONFLICT (role, permission) DO NOTHING;
+INSERT INTO public.role_permissions (role, permission) VALUES ('admin', 'users.all'), ON CONFLICT (role, permission) DO NOTHING;
 
 -- Trigger the function every time a user is created
 drop trigger if exists on_auth_user_created on auth.users;
@@ -131,8 +117,8 @@ $$;
 grant usage on schema public to supabase_auth_admin;
 grant execute on function public.custom_access_token_hook to supabase_auth_admin;
 revoke execute on function public.custom_access_token_hook from authenticated, anon, public;
-grant all on table public.users to supabase_auth_admin;
-revoke all on table public.users from authenticated, anon, public;
+revoke all on table public.users from anon, public;
+grant all on table public.users to authenticated, supabase_auth_admin;
 create policy "Allow auth admin to read users" ON public.users as permissive for select to supabase_auth_admin using (true);
 
 -- Helper function: create_user
