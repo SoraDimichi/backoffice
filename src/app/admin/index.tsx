@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { supabase } from "../lib/supabaseClient";
-import { Button } from "../components/ui/button";
+import { supabase } from "@/lib/supabaseClient";
+import { Button } from "@/components/ui/button";
 import { CreateUserForm } from "./CreateUserForm";
 import { RoleSelect as RS } from "./RoleSelect";
 import { Boundary, useErrorBoundary } from "@/components/ui/Boundary";
+import { Header } from "@/components/Header";
 
 const deleteUser = async (user_id: string) => {
   const { data, error } = await supabase.rpc("delete_user", { user_id });
@@ -115,18 +116,7 @@ const Users: typeof UsersInner = (p) => (
     <UsersInner {...p} />
   </Boundary>
 );
-export type AddUser = (user: User) => void;
-export const AdminPanel = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const addUser = (user: User) => setUsers((prev) => [...prev, user]);
 
-  return (
-    <div className="space-y-4">
-      <Users users={users} setUsers={setUsers} />
-      <PlusButton addUser={addUser} className={"self-center"} />
-    </div>
-  );
-};
 type PlusButtonP = { className: string; addUser: AddUser };
 const PlusButton = ({ className, addUser }: PlusButtonP) => {
   const [shown, setShowForm] = useState(false);
@@ -143,27 +133,22 @@ const PlusButton = ({ className, addUser }: PlusButtonP) => {
     </>
   );
 };
+export type AddUser = (user: User) => void;
+const AdminInner = () => {
+  const [users, setUsers] = useState<User[]>([]);
+  const addUser = (user: User) => setUsers((prev) => [...prev, user]);
 
-// const setUserRole = (userId: string, roleId: string) =>
-//   supabase
-//     .from("users")
-//     .update({ role_id: roleId })
-//     .match({ id: userId })
-//     .then((r) => console.log(r.data))
-//     .catch((e) => console.error(e));
-//
-// const createUser = () =>
-//   supabase
-//     .from("users")
-//     .insert([{ name: nameValue, email: emailValue, password: passwordValue }])
-//     .then(() => getUsers())
-//     .catch((e) => console.error(e));
-//
-// const updateUser = (id: string, newName: string) =>
-//   supabase
-//     .from("users")
-//     .update({ name: newName })
-//     .match({ id })
-//     .then(() => getUsers())
-//     .catch((e) => console.error(e));
-//
+  return (
+    <div className="space-y-4">
+      <Users users={users} setUsers={setUsers} />
+      <PlusButton addUser={addUser} className={"self-center"} />
+    </div>
+  );
+};
+
+export const Admin = () => (
+  <div>
+    <Header />
+    <AdminInner />
+  </div>
+);

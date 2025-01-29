@@ -1,17 +1,43 @@
-import { AuthForm } from "./components/form";
-import { UserInterface } from "./components/ui";
+import React from "react";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { useUser } from "./context";
+import { Auth } from "@/app/auth";
+import { Admin } from "@/app/admin";
+import { Progress } from "@radix-ui/react-progress";
+import { Main } from "./app";
 
-function App() {
+export const App: React.FC = () => {
   const { userLoaded } = useUser();
 
+  return userLoaded === null ? <Progress /> : <AppInner />;
+};
+
+const AppInner = () => {
+  const { user } = useUser();
+  const role = user?.appRole ?? "guest";
+
   return (
-    <div className="flex min-h-svh w-full items-center justify-center p-6 md:p-10">
-      <div className="w-full max-w-sm">
-        {userLoaded ? <UserInterface /> : <AuthForm />}
-      </div>
-    </div>
+    <Routes>
+      <Route
+        path="/auth"
+        element={role === "guest" ? <Auth /> : <Navigate to="/" />}
+      />
+      <Route
+        path="/"
+        element={
+          role === "user" || role === "admin" ? (
+            <Main />
+          ) : (
+            <Navigate to="/auth" />
+          )
+        }
+      />
+      <Route
+        path="/admin"
+        element={role === "admin" ? <Admin /> : <Navigate to="/" />}
+      />
+    </Routes>
   );
-}
+};
 
 export default App;
