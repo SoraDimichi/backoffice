@@ -1,4 +1,4 @@
-create type public.app_permission as enum ('public.users.update', 'public.users.select', 'public.delete_user', 'public.create_user');
+create type public.app_permission as enum ('public.users.update', 'public.users.select', 'public.delete_user', 'public.create_user', 'public.transactions.select');
 create type public.app_role as enum ('admin', 'user', 'guest');
 
 create table public.users (
@@ -34,13 +34,6 @@ begin
 end;
 $$ language plpgsql security definer set search_path = public;
 
-insert into public.role_permissions (role, permission)
-values
-    ('admin', 'public.users.update'),
-    ('admin', 'public.users.select'),
-    ('admin', 'public.create_user'),
-    ('admin', 'public.delete_user');
-
 create policy "admin can update public.users" on public.users for update using (public.authorize('public.users.update'));
 create policy "admin can select public.users" on public.users for select using (public.authorize('public.users.select'));
 
@@ -50,9 +43,13 @@ alter table public.users replica identity full;
 
 create or replace function public.handle_new_user()
 returns trigger as $$
+DECLARE
+    first_name TEXT:= new.raw_user_meta_data->>'first_name';
+    last_name  TEXT:= new.raw_user_meta_data->>'last_name';
+    full_name  TEXT:= NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), '');
 begin
-    insert into public.users (id, username)
-    values (NEW.id, NEW.email)
+    insert into public.users (id, username, role)
+    values (new.id, full_name, 'user')
     on conflict (id) do nothing;
 
     return NEW;
@@ -125,7 +122,6 @@ begin
     return user_id;
 end;
 $$ language plpgsql security definer set search_path = auth, public;
-
 grant execute on function public.create_user(text, text, public.app_role) to authenticated;
 
 create or replace function public.delete_user(
@@ -170,9 +166,6 @@ BEGIN
     user_id := extensions.gen_random_uuid();
     encrypted_pw := extensions.crypt(password, extensions.gen_salt('bf'));
 
-    WITH name_construction AS (
-        SELECT NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), '') AS full_name
-    )
     INSERT INTO auth.users (
         instance_id,
         id,
@@ -207,15 +200,16 @@ BEGIN
             'sub', user_id::TEXT,
             'email', email,
             'email_verified', 'true',
-            'phone_verified', 'false'     
+            'phone_verified', 'false',
+            'first_name', first_name,
+            'last_name', last_name
         ),
         created_at,
         COALESCE(updated_at, created_at),
         '',
         '',
         '',
-        ''
-    FROM name_construction;
+        '';
    
     INSERT INTO auth.identities (
         id,
@@ -299,6 +293,25 @@ CREATE TABLE public.transactions (
 
 COMMENT ON TABLE public.transactions IS 'Stores all user transactions with their details.';
 COMMENT ON COLUMN public.transactions.user_id IS 'Foreign key referencing the user in the auth.users table.';
+alter table public.transactions enable row level security;
+
+
+CREATE VIEW transactions_with_username WITH (security_invoker = true) AS
+SELECT 
+    t.id AS transaction_id, 
+    u.username, 
+    t.description, 
+    t.amount, 
+    t.type,
+    t.subtype,
+    t.status,
+    t.created_at
+FROM public.transactions t
+JOIN public.users u ON t.user_id = u.id;
+
+create policy "admin can select public.transactions" on public.transactions for select using (public.authorize('public.transactions.select'));
+create policy "user can select public.transactions" on public.transactions for select using (public.authorize('public.transactions.select'));
+
 
 CREATE OR REPLACE FUNCTION public.get_revenue_current_month()
 RETURNS JSONB
@@ -310,6 +323,10 @@ DECLARE
     date_range  TEXT;
     total_value NUMERIC;
 BEGIN
+    IF NOT public.authorize('public.transactions.select') THEN
+        RAISE EXCEPTION 'Insufficient privileges. Must have public.transactions.select permission.';
+    END IF;
+
     start_date := date_trunc('month', now());
     end_date   := now();
 
@@ -363,6 +380,9 @@ DECLARE
     date_range  TEXT;
     total_value NUMERIC;
 BEGIN
+    IF NOT public.authorize('public.transactions.select') THEN
+        RAISE EXCEPTION 'Insufficient privileges. Must have public.transactions.select permission.';
+    END IF;
     start_date := date_trunc('week', now()::date + 1);
     end_date   := now();
 
@@ -403,5 +423,13 @@ BEGIN
     );
 END;
 $$;
-
 GRANT EXECUTE ON FUNCTION public.get_revenue_current_week() TO authenticated;
+
+insert into public.role_permissions (role, permission)
+values
+    ('admin', 'public.users.update'),
+    ('admin', 'public.users.select'),
+    ('admin', 'public.create_user'),
+    ('admin', 'public.delete_user'),
+    ('user', 'public.transactions.select'),
+    ('admin', 'public.transactions.select');

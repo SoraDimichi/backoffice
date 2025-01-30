@@ -8,12 +8,21 @@ const currencyFormatter = new Intl.NumberFormat("en-US", {
 
 export const columns: ColumnDef<Transaction>[] = [
   {
-    accessorKey: "description",
-    header: "Description",
+    accessorKey: "username",
+    header: "User",
   },
   {
-    accessorKey: "user_id",
-    header: "User",
+    accessorKey: "created_at",
+    header: "Created",
+    cell: ({ row }) => {
+      const dateVal: string = row.getValue("created_at");
+      const date = new Date(dateVal);
+      return date.toLocaleString();
+    },
+  },
+  {
+    accessorKey: "description",
+    header: "Description",
   },
   {
     accessorKey: "type",
@@ -43,23 +52,5 @@ export const columns: ColumnDef<Transaction>[] = [
     cell: ({ row }) => (
       <span className="capitalize">{row.getValue("status")}</span>
     ),
-  },
-  {
-    accessorKey: "created_at",
-    header: "Created",
-    cell: ({ row }) => {
-      const dateVal: string = row.getValue("created_at");
-      const date = new Date(dateVal);
-      return date.toLocaleString();
-    },
-  },
-  {
-    accessorKey: "updated_at",
-    header: "Updated",
-    cell: ({ row }) => {
-      const dateVal: string = row.getValue("updated_at");
-      const date = new Date(dateVal);
-      return date.toLocaleString();
-    },
   },
 ];

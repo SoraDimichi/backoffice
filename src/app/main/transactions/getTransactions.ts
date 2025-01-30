@@ -16,7 +16,7 @@ interface GetTransactionsParams {
   maxAmount?: number;
 }
 
-export const LIMIT = 15;
+export const LIMIT = 20;
 
 type GetTransactions = (
   p: GetTransactionsParams,
@@ -34,12 +34,14 @@ export const getTransactions: GetTransactions = async (p) => {
   } = p;
 
   let query = supabase
-    .from("transactions")
+    .from("transactions_with_username")
     .select("*", { count: "exact" })
     .range((page - 1) * LIMIT, (page - 1) * LIMIT + LIMIT - 1);
 
   if (searchTerm) {
-    query = query.or(`description.ilike.%${searchTerm}%`);
+    query = query.or(
+      `description.ilike.%${searchTerm}%,username.ilike.%${searchTerm}%`,
+    );
   }
 
   if (type) {
@@ -67,3 +69,6 @@ export const getTransactions: GetTransactions = async (p) => {
 
   return { data: data ?? [], count: count ?? 0 };
 };
+
+export const getDetailedInfo = (id: string) =>
+  supabase.from("transactions").select().eq("id", id);

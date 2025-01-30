@@ -79,7 +79,11 @@ const CreateUserForm = (p: CreateUserFormProps) => {
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-8"
+              noValidate
+            >
               <div className="flex flex-col gap-6">
                 <FormField
                   control={form.control}
