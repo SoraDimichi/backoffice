@@ -10,7 +10,7 @@ export enum TransactionSubtype {
 }
 
 export enum TransactionStatus {
-  ENDING = "ending",
+  ENDING = "pending",
   COMPLETED = "completed",
   FAILED = "failed",
 }

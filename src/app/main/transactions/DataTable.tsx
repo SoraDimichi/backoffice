@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
   ColumnDef,
   flexRender,
+  type Row,
 } from "@tanstack/react-table";
 
 import { getTransactions, LIMIT } from "./getTransactions";
@@ -39,20 +40,21 @@ interface DataTableProps<TData> {
 const ALL = "All" as const;
 export function DataTable({ columns }: DataTableProps<Transaction>) {
   const { showBoundary } = useErrorBoundary();
-  const [page, setPage] = React.useState(1);
-  const [searchTerm, setSearchTerm] = React.useState("");
+  const [page, setPage] = useState(1);
   const [type, setType] = useState<TransactionType | typeof ALL>(ALL);
   const [subtype, setSubtype] = useState<TransactionSubtype | typeof ALL>(ALL);
   const [status, setStatus] = useState<TransactionStatus | typeof ALL>(ALL);
+
+  const [searchTerm, setSearchTerm] = useState("");
   const [minAmount, setMinAmount] = useState<number | undefined>(undefined);
   const [maxAmount, setMaxAmount] = useState<number | undefined>(undefined);
 
-  const [data, setData] = React.useState<Transaction[]>([]);
-  const [totalCount, setTotalCount] = React.useState(0);
+  const [data, setData] = useState<Transaction[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
   const pageCount = Math.ceil(totalCount / LIMIT) || 1;
 
-  useEffect(() => {
-    async function fetchData() {
+  const cb = useCallback(async () => {
+    try {
       const { data, count } = await getTransactions({
         page,
         searchTerm: searchTerm || undefined,
@@ -62,12 +64,11 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
         minAmount,
         maxAmount,
       });
-
       setData(data);
       setTotalCount(count ?? 0);
+    } catch (error) {
+      showBoundary(error);
     }
-
-    fetchData();
   }, [
     page,
     searchTerm,
@@ -78,6 +79,10 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
     maxAmount,
     showBoundary,
   ]);
+
+  useEffect(() => {
+    cb();
+  }, [cb]);
 
   const table = useReactTable({
     data,
@@ -114,7 +119,7 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
             setPage(1);
           }}
         />
-
+        Type
         <Select
           value={type}
           onValueChange={(val: typeof type) => {
@@ -132,7 +137,7 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
             ))}
           </SelectContent>
         </Select>
-
+        Sybtype
         <Select
           defaultValue={ALL}
           value={subtype}
@@ -150,7 +155,7 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
             ))}
           </SelectContent>
         </Select>
-
+        Status
         <Select
           value={status}
           onValueChange={(val: typeof status) => {
@@ -168,7 +173,6 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
             ))}
           </SelectContent>
         </Select>
-
         <div className="flex items-center space-x-2">
           <Input
             type="number"
@@ -192,7 +196,6 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
           />
         </div>
       </div>
-
       <div className="rounded-md border">
         <Table>
           <TableHeader>
@@ -211,21 +214,11 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
               </TableRow>
             ))}
           </TableHeader>
-
           <TableBody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+              table
+                .getRowModel()
+                .rows.map((row) => <Row key={crypto.randomUUID()} row={row} />)
             ) : (
               <TableRow>
                 <TableCell
@@ -268,6 +261,24 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
     </div>
   );
 }
+
+const Row = ({ row }: { row: Row<Transaction> }) => {
+  const [visible, setVisible] = useState(false);
+
+  return (
+    <TableRow key={row.id} className="relative">
+      {row.getVisibleCells().map((cell, i) => {
+        const item = (cell.getValue() ?? "").toString();
+        const stars = "*".repeat(item.length);
+
+        return (
+          <TableCell key={cell.id}>{i < 2 || visible ? item : stars}</TableCell>
+        );
+      })}
+      <div onClick={() => setVisible(true)} className="absolute inset-0" />
+    </TableRow>
+  );
+};
 
 export const TransactionsTable: typeof DataTable = (p) => (
   <Boundary>
