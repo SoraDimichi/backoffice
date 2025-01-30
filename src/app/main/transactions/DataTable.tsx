@@ -4,6 +4,7 @@ import {
   getCoreRowModel,
   ColumnDef,
   flexRender,
+  Row,
 } from "@tanstack/react-table";
 
 import { getTransactions, LIMIT } from "./getTransactions";
@@ -259,13 +260,13 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
   );
 }
 
-const Row = ({ row }: any) => {
+const Row = ({ row }: { row: Row<Transaction> }) => {
   const [visible, setVisible] = useState(false);
 
   return (
     <TableRow key={row.id} className="relative">
-      {row.getVisibleCells().map((cell: any, i) => {
-        const item = cell.getValue().toString();
+      {row.getVisibleCells().map((cell, i) => {
+        const item = (cell.getValue() ?? "").toString();
         const stars = "*".repeat(item.length);
 
         return (
