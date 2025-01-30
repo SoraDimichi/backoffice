@@ -4,7 +4,7 @@ import {
   getCoreRowModel,
   ColumnDef,
   flexRender,
-  Row,
+  type Row,
 } from "@tanstack/react-table";
 
 import { getTransactions, LIMIT } from "./getTransactions";
@@ -216,7 +216,9 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => <Row row={row} />)
+              table
+                .getRowModel()
+                .rows.map((row) => <Row key={crypto.randomUUID()} row={row} />)
             ) : (
               <TableRow>
                 <TableCell
