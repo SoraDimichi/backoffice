@@ -111,7 +111,7 @@ const UsersInner = ({ users, setUsers }: UsersInnerP) => {
   if (users.length === 0) return <p>No users found.</p>;
 
   return (
-    <div className="mt-4 grid grid-cols-1 md:grid-cols-1 gap-4">
+    <div className="mt-4 grid grid-cols-1 md:grid-cols-1">
       {users?.map((item) => <UserItem {...item} />)}
     </div>
   );
