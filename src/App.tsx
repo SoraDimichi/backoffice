@@ -1,10 +1,8 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { useUser } from "./context";
-import { Auth } from "@/app/auth";
-import { Admin } from "@/app/admin";
-import { Progress } from "@radix-ui/react-progress";
-import { Main } from "./app";
+import { Auth, Admin, Main, Dashboard } from "@/app";
+import { Progress } from "@/components/ui/progress";
 
 export const App: React.FC = () => {
   const { userLoaded } = useUser();
@@ -16,6 +14,8 @@ const AppInner = () => {
   const { user } = useUser();
   const role = user?.appRole ?? "guest";
 
+  const isAuthenticated = role === "user" || role === "admin";
+
   return (
     <Routes>
       <Route
@@ -24,13 +24,11 @@ const AppInner = () => {
       />
       <Route
         path="/"
-        element={
-          role === "user" || role === "admin" ? (
-            <Main />
-          ) : (
-            <Navigate to="/auth" />
-          )
-        }
+        element={isAuthenticated ? <Main /> : <Navigate to="/auth" />}
+      />
+      <Route
+        path="/dashboard"
+        element={isAuthenticated ? <Dashboard /> : <Navigate to="/auth" />}
       />
       <Route
         path="/admin"

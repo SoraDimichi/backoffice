@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { CreateUserForm } from "./CreateUserForm";
+import { FormButton } from "./CreateUserForm";
 import { RoleSelect as RS } from "./RoleSelect";
 import { Boundary, useErrorBoundary } from "@/components/ui/Boundary";
 import { Header } from "@/components/Header";
+import { User } from "./type";
+import { Progress } from "@/components/ui/progress";
 
 const deleteUser = async (user_id: string) => {
   const { data, error } = await supabase.rpc("delete_user", { user_id });
@@ -70,16 +72,21 @@ const DeleteButton: typeof DeleteButtonInner = (p) => (
 );
 
 type UserP = { id: string; role: string; username: string };
-const User = ({ id, role, username }: UserP) => {
+const UserItem = ({ id, role, username }: UserP) => {
   const [mounted, setMounted] = useState(true);
 
   if (!mounted) return null;
 
   return (
-    <div key={id} className="border p-4 mt-2 flex space-x-2 rounded">
+    <div
+      key={id}
+      className="border p-4 mt-2 flex space-x-2 justify-between rounded"
+    >
       <p className="font-semibold">{username}</p>
-      <RoleSelect id={id} role={role} />
-      <DeleteButton id={id} unmount={() => setMounted(false)} />
+      <div className="flex gap-4">
+        <RoleSelect id={id} role={role} />
+        <DeleteButton id={id} unmount={() => setMounted(false)} />
+      </div>
     </div>
   );
 };
@@ -92,8 +99,7 @@ const getUsers = async () => {
   return data;
 };
 
-type User = { id: string; role: string; username: string };
-type UsersInnerP = { users: User[]; setUsers: (users: User[]) => void };
+type UsersInnerP = { users: User[] | null; setUsers: (users: User[]) => void };
 const UsersInner = ({ users, setUsers }: UsersInnerP) => {
   const { showBoundary } = useErrorBoundary();
 
@@ -101,12 +107,12 @@ const UsersInner = ({ users, setUsers }: UsersInnerP) => {
     getUsers().then(setUsers).catch(showBoundary);
   }, [showBoundary, setUsers]);
 
+  if (users === null) return <Progress className="mt-4 justify-self-center" />;
+  if (users.length === 0) return <p>No users found.</p>;
+
   return (
-    <div>
-      <h2 className="text-xl font-bold">User Management</h2>
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-1 gap-4">
-        {users?.map((item) => <User {...item} />)}
-      </div>
+    <div className="mt-4 grid grid-cols-1 md:grid-cols-1 gap-4">
+      {users?.map((item) => <UserItem {...item} />)}
     </div>
   );
 };
@@ -117,31 +123,22 @@ const Users: typeof UsersInner = (p) => (
   </Boundary>
 );
 
-type PlusButtonP = { className: string; addUser: AddUser };
-const PlusButton = ({ className, addUser }: PlusButtonP) => {
-  const [shown, setShowForm] = useState(false);
-
-  return (
-    <>
-      <Button
-        className={className}
-        onClick={() => setShowForm((prev) => !prev)}
-      >
-        {shown ? "Close form" : "Create New User"}
-      </Button>
-      {shown && <CreateUserForm addUser={addUser} />}
-    </>
-  );
-};
 export type AddUser = (user: User) => void;
 const AdminInner = () => {
-  const [users, setUsers] = useState<User[]>([]);
-  const addUser = (user: User) => setUsers((prev) => [...prev, user]);
+  const [users, setUsers] = useState<User[] | null>(null);
+  const addUser = (user: User) =>
+    setUsers((prev) => {
+      if (!prev) return [user];
+      return [...prev, user];
+    });
 
   return (
-    <div className="space-y-4">
+    <div className="container mx-auto py-10 grid">
+      <div className="flex justify-between items-center">
+        <h2 className="text-xl font-bold mb-4">User Management</h2>
+        <FormButton addUser={addUser} className={"self-center"} />
+      </div>
       <Users users={users} setUsers={setUsers} />
-      <PlusButton addUser={addUser} className={"self-center"} />
     </div>
   );
 };

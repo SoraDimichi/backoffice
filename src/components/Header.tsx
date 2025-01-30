@@ -19,43 +19,54 @@ const Logout = () => (
   </Boundary>
 );
 
-const ButtonResolver = () => {
+const Admin = () => {
+  const { user } = useUser();
+  const { pathname } = useLocation();
+  const push = useNavigate();
+  const role = user?.appRole ?? "guest";
+
+  if (role !== "admin" || pathname === "/admin") return null;
+
+  return (
+    <Button className="w-20" onClick={() => push("/admin")}>
+      Panel
+    </Button>
+  );
+};
+
+const Home = () => {
   const { pathname } = useLocation();
   const push = useNavigate();
 
-  switch (pathname) {
-    case "/admin":
-      return (
-        <Button className="w-15" onClick={() => push("/")}>
-          Home
-        </Button>
-      );
-    case "/":
-    default:
-      return (
-        <Button className="w-15" onClick={() => push("/admin")}>
-          Panel
-        </Button>
-      );
-  }
-};
-
-const AdminNavigation = () => {
-  const { user } = useUser();
-  const role = user?.appRole ?? "guest";
-
-  if (role !== "admin") return null;
+  if (pathname === "/") return;
 
   return (
-    <div className="flex space-x-2.5">
-      <ButtonResolver />
-    </div>
+    <Button className="w-20" onClick={() => push("/")}>
+      Home
+    </Button>
+  );
+};
+
+const Dashboard = () => {
+  const { pathname } = useLocation();
+  const push = useNavigate();
+
+  if (pathname === "/dashboard") return;
+
+  return (
+    <Button className="w-20" onClick={() => push("/dashboard")}>
+      Revenue
+    </Button>
   );
 };
 
 export const Header = () => (
-  <header className="flex justify-between items-center p-4 bg-gray-800">
-    <AdminNavigation />
+  <header className="flex justify-between items-center p-4 bg-gray-900">
+    <div className="flex gap-4">
+      <Home />
+      <Admin />
+      <Dashboard />
+    </div>
     <Logout />
   </header>
 );

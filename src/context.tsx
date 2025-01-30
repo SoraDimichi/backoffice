@@ -58,7 +58,7 @@ export const WithUser = ({ children }: { children: ReactNode }) => {
       .then(({ data: { session } }) => saveSession(session));
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      (_, session) => {
         saveSession(session);
       },
     );

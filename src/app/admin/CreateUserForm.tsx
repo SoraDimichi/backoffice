@@ -24,7 +24,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { supabase } from "@/lib/supabaseClient";
 import { RoleSelect } from "./RoleSelect";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AddUser } from ".";
 
 const userSchema = z.object({
@@ -37,6 +37,7 @@ const userSchema = z.object({
 
 type CreateUserFormProps = React.ComponentPropsWithoutRef<"div"> & {
   addUser: AddUser;
+  close: () => void;
 };
 type CreateUserP = z.infer<typeof userSchema>;
 
@@ -48,7 +49,7 @@ const createUser = async ({ username: email, ...p }: CreateUserP) => {
 };
 
 const CreateUserForm = (p: CreateUserFormProps) => {
-  const { className, addUser, ...props } = p;
+  const { className, close, addUser, ...props } = p;
   const form = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
     defaultValues: { username: "", password: "", role: "user" },
@@ -66,7 +67,8 @@ const CreateUserForm = (p: CreateUserFormProps) => {
   const onSubmit = async (data: z.infer<typeof userSchema>) =>
     createUser(data)
       .then((id) => addUser({ id, ...data }))
-      .catch((error) => setError("root", { message: error.message }));
+      .catch((error) => setError("root", { message: error.message }))
+      .finally(close);
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -145,4 +147,27 @@ const CreateUserForm = (p: CreateUserFormProps) => {
   );
 };
 
-export { CreateUserForm };
+type FormButtonP = { className: string; addUser: AddUser };
+export const FormButton = ({ className, addUser }: FormButtonP) => {
+  const [shown, setShowForm] = useState(false);
+
+  const close = () => setShowForm(false);
+
+  return (
+    <div>
+      <Button className={className} onClick={() => setShowForm(true)}>
+        Create New User
+      </Button>
+      {shown && (
+        <div className="fixed inset-0 bg-black/80 bg-opacity-20 flex items-center justify-center z-50">
+          <div className="relative min-w-75">
+            <CreateUserForm addUser={addUser} close={close} />
+            <Button className="absolute absolute top-7 right-4" onClick={close}>
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
