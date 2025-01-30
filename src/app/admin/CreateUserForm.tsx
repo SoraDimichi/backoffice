@@ -23,15 +23,12 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { supabase } from "@/lib/supabaseClient";
-import { RoleSelect } from "./RoleSelect";
 import { useEffect, useState } from "react";
 import { AddUser } from ".";
+import { createUserSchema } from "../auth/Register";
 
 const userSchema = z.object({
-  username: z.string().email({ message: "Invalid email address." }),
-  password: z
-    .string()
-    .min(6, { message: "Password must be at least 6 characters." }),
+  ...createUserSchema,
   role: z.enum(["user", "admin"], { required_error: "Please select a role." }),
 });
 
@@ -41,7 +38,7 @@ type CreateUserFormProps = React.ComponentPropsWithoutRef<"div"> & {
 };
 type CreateUserP = z.infer<typeof userSchema>;
 
-const createUser = async ({ username: email, ...p }: CreateUserP) => {
+const createUser = async ({ email, ...p }: CreateUserP) => {
   const { data, error } = await supabase.rpc("create_user", { email, ...p });
   if (error) throw Error(error.message);
 
@@ -52,7 +49,13 @@ const CreateUserForm = (p: CreateUserFormProps) => {
   const { className, close, addUser, ...props } = p;
   const form = useForm<z.infer<typeof userSchema>>({
     resolver: zodResolver(userSchema),
-    defaultValues: { username: "", password: "", role: "user" },
+    defaultValues: {
+      email: "",
+      firstName: "",
+      lastName: "",
+      password: "",
+      role: "user",
+    },
   });
 
   const { setError, formState, watch, clearErrors } = form;
@@ -66,7 +69,13 @@ const CreateUserForm = (p: CreateUserFormProps) => {
 
   const onSubmit = async (data: z.infer<typeof userSchema>) =>
     createUser(data)
-      .then((id) => addUser({ id, ...data }))
+      .then((id) =>
+        addUser({
+          id,
+          username: `${data.firstName} ${data.lastName}`,
+          role: data.role,
+        }),
+      )
       .catch((error) => setError("root", { message: error.message }))
       .finally(close);
 
@@ -87,51 +96,63 @@ const CreateUserForm = (p: CreateUserFormProps) => {
               <div className="flex flex-col gap-6">
                 <FormField
                   control={form.control}
-                  name="username"
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>First Name</FormLabel>
+                      <FormControl>
+                        <Input disabled={disabled} type="text" {...field} />
+                      </FormControl>
+                      <FormDescription>User's given name.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Last Name</FormLabel>
+                      <FormControl>
+                        <Input disabled={disabled} type="text" {...field} />
+                      </FormControl>
+                      <FormDescription>User's family name.</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
                         <Input
-                          type="email"
                           disabled={disabled}
+                          type="email"
                           placeholder="m@example.com"
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription />
+                      <FormDescription>User's email.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <FormField
                   control={form.control}
-                  disabled={disabled}
                   name="password"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <Input type="password" {...field} />
+                        <Input disabled={disabled} type="password" {...field} />
                       </FormControl>
-                      <FormDescription />
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  disabled={disabled}
-                  name="role"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Role</FormLabel>
-                      <FormControl>
-                        <RoleSelect
-                          onValueChange={field.onChange}
-                          value={field.value}
-                        />
-                      </FormControl>
+                      <FormDescription>
+                        Enter a secure password.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -139,8 +160,8 @@ const CreateUserForm = (p: CreateUserFormProps) => {
                 <div className="text-red-500 text-sm h-2 text-center">
                   {errors?.root?.message}
                 </div>
-                <Button disabled={disabled} type="submit" className="w-full">
-                  Submit
+                <Button type="submit" className="w-full" disabled={disabled}>
+                  {form.formState.isLoading ? "Registering..." : "Register"}
                 </Button>
               </div>
             </form>

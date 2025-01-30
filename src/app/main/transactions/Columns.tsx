@@ -17,7 +17,21 @@ export const columns: ColumnDef<Transaction>[] = [
     cell: ({ row }) => {
       const dateVal: string = row.getValue("created_at");
       const date = new Date(dateVal);
-      return date.toLocaleString();
+
+      const options: Intl.DateTimeFormatOptions = {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      };
+
+      const formattedDate = date
+        .toLocaleString("en-US", options)
+        .replace(",", "");
+
+      return formattedDate;
     },
   },
   {
@@ -27,30 +41,17 @@ export const columns: ColumnDef<Transaction>[] = [
   {
     accessorKey: "type",
     header: "Type",
-    cell: ({ row }) => (
-      <span className="capitalize">{row.getValue("type")}</span>
-    ),
   },
   {
     accessorKey: "subtype",
     header: "Sub-type",
-    cell: ({ row }) => (
-      <span className="capitalize">{row.getValue("subtype")}</span>
-    ),
   },
   {
     accessorKey: "amount",
-    header: "Amount",
-    cell: ({ row }) => {
-      const amount = row.getValue("amount") as number;
-      return currencyFormatter.format(amount);
-    },
+    header: "Amount $",
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => (
-      <span className="capitalize">{row.getValue("status")}</span>
-    ),
   },
 ];

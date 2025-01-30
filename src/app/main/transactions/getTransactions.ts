@@ -16,7 +16,7 @@ interface GetTransactionsParams {
   maxAmount?: number;
 }
 
-export const LIMIT = 20;
+export const LIMIT = 15;
 
 type GetTransactions = (
   p: GetTransactionsParams,

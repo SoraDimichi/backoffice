@@ -32,13 +32,18 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Boundary, useErrorBoundary } from "@/components/ui/Boundary";
+import { columns } from "./Columns";
 
-interface DataTableProps<TData> {
-  columns: ColumnDef<TData, any>[];
+interface DataTableProps<TValue> {
+  columns: ColumnDef<Transaction, TValue>[];
+  data: Transaction[];
 }
 
 const ALL = "All" as const;
-export function DataTable({ columns }: DataTableProps<Transaction>) {
+export function DataTable<TValue>(
+  p: DataTableProps<TValue> & { setData: (data: Transaction[]) => void },
+) {
+  const { columns, setData, data } = p;
   const { showBoundary } = useErrorBoundary();
   const [page, setPage] = useState(1);
   const [type, setType] = useState<TransactionType | typeof ALL>(ALL);
@@ -49,7 +54,6 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
   const [minAmount, setMinAmount] = useState<number | undefined>(undefined);
   const [maxAmount, setMaxAmount] = useState<number | undefined>(undefined);
 
-  const [data, setData] = useState<Transaction[]>([]);
   const [totalCount, setTotalCount] = useState(0);
   const pageCount = Math.ceil(totalCount / LIMIT) || 1;
 
@@ -64,13 +68,14 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
         minAmount,
         maxAmount,
       });
-      setData(data);
+      setData(data as Transaction[]);
       setTotalCount(count ?? 0);
     } catch (error) {
       showBoundary(error);
     }
   }, [
     page,
+    setData,
     searchTerm,
     type,
     subtype,
@@ -174,24 +179,38 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
           </SelectContent>
         </Select>
         <div className="flex items-center space-x-2">
+          Min $
           <Input
             type="number"
-            placeholder="Min $"
             className="w-[80px]"
             value={minAmount ?? ""}
             onChange={(e) => {
               setPage(1);
-              setMinAmount(e.target.value ? Number(e.target.value) : undefined);
+              const rawMin = Number(e.target.value);
+              const newMin = rawMin < 0 ? 0 : rawMin;
+              if (maxAmount !== undefined && newMin >= maxAmount) {
+                setMaxAmount(newMin + 1);
+              }
+              setMinAmount(e.target.value ? newMin : undefined);
             }}
           />
+          Max $
           <Input
             type="number"
-            placeholder="Max $"
             className="w-[80px]"
             value={maxAmount ?? ""}
             onChange={(e) => {
               setPage(1);
-              setMaxAmount(e.target.value ? Number(e.target.value) : undefined);
+              const rawMax = Number(e.target.value);
+              let newMax = rawMax < 0 ? 0 : rawMax;
+              if (minAmount !== undefined && newMax <= minAmount) {
+                const shiftedMin = Math.max(0, newMax - 1);
+                setMinAmount(shiftedMin);
+                if (shiftedMin >= newMax) {
+                  newMax = shiftedMin + 1;
+                }
+              }
+              setMaxAmount(e.target.value ? newMax : undefined);
             }}
           />
         </div>
@@ -203,12 +222,10 @@ export function DataTable({ columns }: DataTableProps<Transaction>) {
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
                   <TableHead key={header.id}>
-                    {header.isPlaceholder
-                      ? null
-                      : flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )}
+                    {flexRender(
+                      header.column.columnDef.header,
+                      header.getContext(),
+                    )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -272,7 +289,13 @@ const Row = ({ row }: { row: Row<Transaction> }) => {
         const stars = "*".repeat(item.length);
 
         return (
-          <TableCell key={cell.id}>{i < 2 || visible ? item : stars}</TableCell>
+          <TableCell key={cell.id}>
+            {i < 2
+              ? flexRender(cell.column.columnDef.cell, cell.getContext())
+              : visible
+                ? item
+                : stars}
+          </TableCell>
         );
       })}
       <div onClick={() => setVisible(true)} className="absolute inset-0" />
@@ -280,8 +303,12 @@ const Row = ({ row }: { row: Row<Transaction> }) => {
   );
 };
 
-export const TransactionsTable: typeof DataTable = (p) => (
-  <Boundary>
-    <DataTable {...p} />
-  </Boundary>
-);
+export const TransactionsTable = () => {
+  const [data, setData] = useState<Transaction[]>([]);
+
+  return (
+    <Boundary>
+      <DataTable columns={columns} data={data} setData={setData} />
+    </Boundary>
+  );
+};
