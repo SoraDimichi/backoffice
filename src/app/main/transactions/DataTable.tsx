@@ -6,6 +6,7 @@ import {
   flexRender,
   type Row,
 } from "@tanstack/react-table";
+import { useDebouncedCallback } from "use-debounce";
 
 import { getTransactions, LIMIT } from "./getTransactions";
 import {
@@ -51,6 +52,11 @@ export function DataTable<TValue>(
   const [status, setStatus] = useState<TransactionStatus | typeof ALL>(ALL);
 
   const [searchTerm, setSearchTerm] = useState("");
+
+  const setDSearchTerm = useDebouncedCallback((e) => {
+    setSearchTerm(e.target.value);
+    setPage(1);
+  }, 500);
   const [minAmount, setMinAmount] = useState<number | undefined>(undefined);
   const [maxAmount, setMaxAmount] = useState<number | undefined>(undefined);
 
@@ -118,11 +124,7 @@ export function DataTable<TValue>(
       <div className="flex flex-wrap gap-2 items-center pb-4">
         <Input
           placeholder="Search description or user..."
-          value={searchTerm}
-          onChange={(e) => {
-            setSearchTerm(e.target.value);
-            setPage(1);
-          }}
+          onChange={setDSearchTerm}
         />
         Type
         <Select

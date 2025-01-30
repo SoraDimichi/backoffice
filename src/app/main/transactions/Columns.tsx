@@ -1,11 +1,6 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { Transaction } from "./type";
 
-const currencyFormatter = new Intl.NumberFormat("en-US", {
-  style: "currency",
-  currency: "USD",
-});
-
 export const columns: ColumnDef<Transaction>[] = [
   {
     accessorKey: "username",
