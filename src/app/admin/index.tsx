@@ -10,19 +10,22 @@ import { Progress } from "@/components/ui/progress";
 import { useUser } from "@/context";
 import { useNavigate } from "react-router-dom";
 
-const deleteUser = async (user_id: string) => {
-  const { data, error } = await supabase.rpc("delete_user", { user_id });
+const deleteUser = async (p_user_id: string) => {
+  const { data, error } = await supabase.rpc("delete_user", { p_user_id });
   if (error) throw Error(error.message);
+  console.log(data);
   return data;
 };
 
 const updateRole = async (value: string, id: string) => {
-  const { error } = await supabase
+  const { error, data } = await supabase
     .from("users")
     .update({ role: value })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
   if (error) throw Error(error?.message);
+  return data[0]?.id;
 };
 
 const RoleSelectInner = (p: { role: string; id: string }) => {
@@ -36,9 +39,7 @@ const RoleSelectInner = (p: { role: string; id: string }) => {
     setLoading(true);
     try {
       const user_id = await updateRole(value, id);
-      if (user?.id === user_id) {
-        await logout().finally(() => push("/auth"));
-      }
+      if (user?.id === user_id) await logout().finally(() => push("/auth"));
       setLoading(false);
     } catch (error) {
       showBoundary(error);
@@ -66,9 +67,7 @@ const DeleteButtonInner = (p: DeleteButtonInnerP) => {
     setLoading(true);
     try {
       const user_id = await deleteUser(id);
-      if (user?.id === user_id) {
-        await logout().finally(() => push("/auth"));
-      }
+      if (user?.id === user_id) await logout().finally(() => push("/auth"));
       setLoading(false);
       unmount();
     } catch (error) {

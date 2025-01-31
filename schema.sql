@@ -2,7 +2,7 @@ create type public.app_permission as enum ('public.users.update', 'public.users.
 create type public.app_role as enum ('admin', 'user', 'guest');
 
 create table public.users (
-  id       uuid references auth.users not null primary key, -- uuid from auth.users
+  id       uuid references auth.users not null primary key,
   username text,
   role     public.app_role default 'user'::public.app_role
 );
@@ -124,27 +124,27 @@ end;
 $$ language plpgsql security definer set search_path = auth, public;
 grant execute on function public.create_user(text, text, public.app_role) to authenticated;
 
-create or replace function public.delete_user(
-    user_id uuid 
-) returns void
-as $$
-begin
-    if not public.authorize('public.delete_user') then
-        raise exception 'insufficient privileges. must have public.delete_user permission.';
-    end if;
+CREATE OR REPLACE FUNCTION public.delete_user(
+    p_user_id UUID 
+) RETURNS UUID 
+AS $$
+BEGIN
+    IF NOT public.authorize('public.delete_user') THEN
+        RAISE EXCEPTION 'insufficient privileges. must have public.delete_user permission.';
+    END IF;
 
-    if not exists (select 1 from auth.users where id = user_id) then
-        raise exception 'user with id % does not exist.', user_id;
-    end if;
+    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE id = p_user_id) THEN
+        RAISE EXCEPTION 'user with id % does not exist.', p_user_id;
+    END IF;
 
+    DELETE FROM public.transactions WHERE user_id = p_user_id;
+    DELETE FROM public.users WHERE id = p_user_id;
+    DELETE FROM auth.users WHERE id = p_user_id;
 
-    delete from public.users where id = user_id;
-    DELETE FROM auth.users WHERE id = user_id;
-
-    return;
-end;
-$$ language plpgsql security definer set search_path = auth, public;
-grant execute on function public.delete_user(uuid) to authenticated;
+    RETURN p_user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER SET search_path = auth, public;
+GRANT EXECUTE ON FUNCTION public.delete_user(UUID) TO authenticated;
 
 CREATE OR REPLACE FUNCTION public.create_user_internal(
     email TEXT,
@@ -270,6 +270,7 @@ BEGIN
 END;
 $$ language plpgsql security definer set search_path = auth, public;
 grant execute on function public.create_user(text, text, public.app_role, text, text, timestamptz, timestamptz, timestamptz) to authenticated;
+
 
 -- Transactions
 CREATE TYPE public.transaction_type AS ENUM ('deposit', 'credit');
