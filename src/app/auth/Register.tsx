@@ -109,7 +109,7 @@ export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
               <div className="flex flex-col gap-6">
                 <FormField
                   control={form.control}
-                  name="firstName"
+                  name="first_name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>First Name</FormLabel>
@@ -123,7 +123,7 @@ export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
                 />
                 <FormField
                   control={form.control}
-                  name="lastName"
+                  name="last_name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>
