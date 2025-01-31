@@ -13,7 +13,6 @@ import { useNavigate } from "react-router-dom";
 const deleteUser = async (p_user_id: string) => {
   const { data, error } = await supabase.rpc("delete_user", { p_user_id });
   if (error) throw Error(error.message);
-  console.log(data);
   return data;
 };
 

@@ -34,8 +34,6 @@ export const WithUser = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [, setSession] = useState<Session | null>(null);
 
-  console.log(user);
-
   useLayoutEffect(() => {
     const saveSession = (session: Session | null) => {
       setSession(session);
@@ -46,7 +44,6 @@ export const WithUser = ({ children }: { children: ReactNode }) => {
       if (session && session.access_token) {
         const decoded = jwtDecode<JwtPayload>(session.access_token);
         if (currentUser) {
-          console.log("decoded", decoded.user_role);
           currentUser.appRole = decoded.user_role;
         }
       }

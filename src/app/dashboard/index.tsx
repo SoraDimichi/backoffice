@@ -18,8 +18,6 @@ const Dashboards = () => {
     ]).then(setResponses);
   }, []);
 
-  console.log(responses);
-
   if (!responses.length) return <Progress />;
 
   return responses.map((data) => <Chart {...data} />);
