@@ -1,4 +1,4 @@
-# Full-Stack Assignment Documentation
+# Backoffice system
 
 ## Table of Contents
 
