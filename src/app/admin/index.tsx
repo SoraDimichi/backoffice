@@ -88,8 +88,7 @@ const DeleteButton: typeof DeleteButtonInner = (p) => (
   </Boundary>
 );
 
-type UserP = { id: string; role: string; username: string };
-const UserItem = ({ id, role, username }: UserP) => {
+const UserItem = ({ id, role, username, email }: User) => {
   const [mounted, setMounted] = useState(true);
 
   if (!mounted) return null;
@@ -99,7 +98,11 @@ const UserItem = ({ id, role, username }: UserP) => {
       key={id}
       className="border p-4 mt-2 flex space-x-2 justify-between rounded"
     >
-      <p className="font-semibold">{username}</p>
+      <div className="flex flex-col">
+        <p className="font-semibold">{username}</p>
+        <p className="text-sm">{email}</p>
+        <p className="text-sm text-gray-500">{id}</p>
+      </div>
       <div className="flex gap-4">
         <RoleSelect id={id} role={role} />
         <DeleteButton id={id} unmount={() => setMounted(false)} />
@@ -109,7 +112,7 @@ const UserItem = ({ id, role, username }: UserP) => {
 };
 
 const getUsers = async () => {
-  const { data, error } = await supabase.from("users").select();
+  const { data, error } = await supabase.from("users_with_email").select();
 
   if (error) throw Error(error.message);
 

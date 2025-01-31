@@ -1,4 +1,4 @@
-create type public.app_permission as enum ('public.users.update', 'public.users.select', 'public.delete_user', 'public.create_user', 'public.transactions.select');
+create type public.app_permission as enum ('public.users.update', 'public.users.select', 'public.delete_user', 'auth.users.select', 'public.create_user', 'public.transactions.select');
 create type public.app_role as enum ('admin', 'user', 'guest');
 
 create table public.users (
@@ -34,12 +34,6 @@ begin
 end;
 $$ language plpgsql security definer set search_path = public;
 
-create policy "admin can update public.users" on public.users for update using (public.authorize('public.users.update'));
-create policy "admin can select public.users" on public.users for select using (public.authorize('public.users.select'));
-
-alter table public.role_permissions enable row level security;
-alter table public.users enable row level security;
-alter table public.users replica identity full;
 
 create or replace function public.handle_new_user()
 returns trigger as $$
@@ -60,12 +54,16 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
-begin;
-  drop publication if exists supabase_realtime;
-  create publication supabase_realtime;
-commit;
+CREATE VIEW users_with_email WITH (security_invoker = true) AS
+SELECT 
+    u.id,
+    u.username, 
+    au.email, 
+    u.role
+FROM auth.users au
+JOIN public.users u ON au.id = u.id;
+GRANT SELECT ON public.users_with_email TO authenticated;
 
-alter publication supabase_realtime add table public.users;
 
 create or replace function public.custom_access_token_hook(event jsonb)
 returns jsonb
@@ -100,6 +98,7 @@ revoke all on table public.users from anon, public;
 grant all on table public.users to authenticated, supabase_auth_admin;
 grant all on table auth.users to authenticated, supabase_auth_admin;
 create policy "allow auth admin to read users" on public.users as permissive for select to supabase_auth_admin using (true);
+
 
 create or replace function public.create_user(
     username text,
@@ -291,7 +290,6 @@ CREATE TABLE public.transactions (
 
 COMMENT ON TABLE public.transactions IS 'Stores all user transactions with their details.';
 COMMENT ON COLUMN public.transactions.user_id IS 'Foreign key referencing the user in the auth.users table.';
-alter table public.transactions enable row level security;
 
 
 CREATE VIEW transactions_with_username WITH (security_invoker = true) AS
@@ -303,12 +301,12 @@ SELECT
     t.type,
     t.subtype,
     t.status,
-    t.created_at,
+    t.created_at
 FROM public.transactions t
 JOIN public.users u ON t.user_id = u.id;
 
-create policy "admin can select public.transactions" on public.transactions for select using (public.authorize('public.transactions.select'));
-create policy "user can select public.transactions" on public.transactions for select using (public.authorize('public.transactions.select'));
+GRANT SELECT ON public.transactions_with_username TO authenticated;
+
 
 
 CREATE OR REPLACE FUNCTION public.get_revenue_current_month()
@@ -421,7 +419,18 @@ BEGIN
     );
 END;
 $$;
-GRANT EXECUTE ON FUNCTION public.get_revenue_current_week() TO authenticated;
+grant execute on function public.get_revenue_current_week() to authenticated;
+
+
+-- policies
+alter table public.transactions enable row level security;
+alter table public.role_permissions enable row level security;
+alter table public.users enable row level security;
+alter table public.users replica identity full;
+create policy "can update public.users" on public.users for update to authenticated using (public.authorize('public.users.update'));
+create policy "can select public.users" on public.users for select to authenticated using (public.authorize('public.users.select'));
+create policy "can select auth.users" on auth.users for select to authenticated using (public.authorize('auth.users.select'));
+create policy "can select public.transactions" on public.transactions for select to authenticated using (public.authorize('public.transactions.select'));
 
 insert into public.role_permissions (role, permission)
 values
@@ -429,5 +438,7 @@ values
     ('admin', 'public.users.select'),
     ('admin', 'public.create_user'),
     ('admin', 'public.delete_user'),
+    ('admin', 'auth.users.select'),
+    ('user', 'public.users.select'),
     ('user', 'public.transactions.select'),
     ('admin', 'public.transactions.select');
