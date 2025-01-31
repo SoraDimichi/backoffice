@@ -51,8 +51,8 @@ const CreateUserForm = (p: CreateUserFormProps) => {
     resolver: zodResolver(userSchema),
     defaultValues: {
       email: "",
-      firstName: "",
-      lastName: "",
+      first_name: "",
+      last_name: "",
       password: "",
       role: "user",
     },
@@ -72,12 +72,12 @@ const CreateUserForm = (p: CreateUserFormProps) => {
       .then((id) =>
         addUser({
           id,
-          username: `${data.firstName} ${data.lastName}`,
+          username: `${data.first_name} ${data.last_name}`,
           role: data.role,
         }),
       )
-      .catch((error) => setError("root", { message: error.message }))
-      .finally(close);
+      .then(close)
+      .catch((error) => setError("root", { message: error.message }));
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
@@ -96,7 +96,7 @@ const CreateUserForm = (p: CreateUserFormProps) => {
               <div className="flex flex-col gap-6">
                 <FormField
                   control={form.control}
-                  name="firstName"
+                  name="first_name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>First Name</FormLabel>
@@ -110,7 +110,7 @@ const CreateUserForm = (p: CreateUserFormProps) => {
                 />
                 <FormField
                   control={form.control}
-                  name="lastName"
+                  name="last_name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>

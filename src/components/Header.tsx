@@ -4,9 +4,9 @@ import { useUser } from "@/context";
 import { useNavigate, useLocation } from "react-router-dom";
 import { Boundary } from "./ui/Boundary";
 
-const logout = async () => {
+export const logout = async () => {
   const { error } = await supabase.auth.signOut();
-  throw error;
+  if (error) throw Error(error.message);
 };
 const LogoutInner = () => (
   <Button onClick={logout} className="ml-auto">

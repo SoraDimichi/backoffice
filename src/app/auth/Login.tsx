@@ -23,12 +23,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
-const loginSchema = z.object({
-  email: z.string().email({ message: "Invalid email address." }),
+export const loginUserSchema = {
+  email: z
+    .string()
+    .email({ message: "Invalid email address." })
+    .max(50, { message: "Email must be less than 50 characters." }),
   password: z
     .string()
-    .min(6, { message: "Password must be at least 6 characters." }),
-});
+    .min(6, { message: "Password must be at least 6 characters." })
+    .max(30, { message: "Password must be less than 30 characters." }),
+};
+
+const loginSchema = z.object(loginUserSchema);
 
 type LoginFormValues = z.infer<typeof loginSchema>;
 
@@ -56,7 +62,6 @@ export const Login: React.FC<LoginProps> = ({ className, ...props }) => {
   }, [clearErrors, errors, watch]);
 
   const onSubmit = async (data: LoginFormValues) => {
-    console.log(data);
     const { error } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,

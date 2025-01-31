@@ -4,9 +4,11 @@ import { Button } from "@/components/ui/button";
 import { FormButton } from "./CreateUserForm";
 import { RoleSelect as RS } from "./RoleSelect";
 import { Boundary, useErrorBoundary } from "@/components/ui/Boundary";
-import { Header } from "@/components/Header";
+import { Header, logout } from "@/components/Header";
 import { User } from "./type";
 import { Progress } from "@/components/ui/progress";
+import { useUser } from "@/context";
+import { useNavigate } from "react-router-dom";
 
 const deleteUser = async (user_id: string) => {
   const { data, error } = await supabase.rpc("delete_user", { user_id });
@@ -25,14 +27,22 @@ const updateRole = async (value: string, id: string) => {
 
 const RoleSelectInner = (p: { role: string; id: string }) => {
   const { role, id } = p;
+  const { user } = useUser();
+  const push = useNavigate();
   const [loading, setLoading] = useState(false);
 
   const { showBoundary } = useErrorBoundary();
   const update = async (value: string) => {
     setLoading(true);
-    await updateRole(value, id)
-      .catch(showBoundary)
-      .finally(() => setLoading(false));
+    try {
+      const user_id = await updateRole(value, id);
+      if (user?.id === user_id) {
+        await logout().finally(() => push("/auth"));
+      }
+      setLoading(false);
+    } catch (error) {
+      showBoundary(error);
+    }
   };
 
   return <RS disabled={loading} onValueChange={update} value={role} />;
@@ -49,13 +59,21 @@ const DeleteButtonInner = (p: DeleteButtonInnerP) => {
   const { id, unmount } = p;
   const { showBoundary } = useErrorBoundary();
   const [loading, setLoading] = useState(false);
+  const { user } = useUser();
+  const push = useNavigate();
 
   const del = async () => {
     setLoading(true);
-    await deleteUser(id)
-      .then(unmount)
-      .catch(showBoundary)
-      .finally(() => setLoading(false));
+    try {
+      const user_id = await deleteUser(id);
+      if (user?.id === user_id) {
+        await logout().finally(() => push("/auth"));
+      }
+      setLoading(false);
+      unmount();
+    } catch (error) {
+      showBoundary(error);
+    }
   };
 
   return (

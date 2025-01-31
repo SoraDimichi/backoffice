@@ -23,14 +23,18 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
+import { loginUserSchema } from "./Login";
 
 export const createUserSchema = {
-  firstName: z.string().min(1, { message: "First name is required." }),
-  lastName: z.string().min(1, { message: "Last name is required." }),
-  email: z.string().email({ message: "Invalid email address." }),
-  password: z
+  ...loginUserSchema,
+  first_name: z
     .string()
-    .min(6, { message: "Password must be at least 6 characters." }),
+    .min(1, { message: "First name is required." })
+    .max(20, { message: "First name must be less than 20 characters." }),
+  last_name: z
+    .string()
+    .min(1, { message: "Last name is required." })
+    .max(20, { message: "Last name must be less than 20 characters." }),
 };
 
 const registerSchema = z.object({
@@ -50,8 +54,8 @@ export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      firstName: "",
-      lastName: "",
+      first_name: "",
+      last_name: "",
       email: "",
       password: "",
       terms: false,
@@ -76,8 +80,8 @@ export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
         password: data.password,
         options: {
           data: {
-            first_name: data.firstName,
-            last_name: data.lastName,
+            first_name: data.first_name,
+            last_name: data.last_name,
           },
         },
       })

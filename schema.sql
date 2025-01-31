@@ -1,10 +1,4 @@
-create type public.app_permission as enum (
-  'public.users.update',
-  'public.users.select',
-  'public.delete_user',
-  'public.create_user',
-  'public.transactions.select'
-);
+create type public.app_permission as enum ('public.users.update', 'public.users.select', 'public.delete_user', 'public.create_user', 'public.transactions.select');
 create type public.app_role as enum ('admin', 'user', 'guest');
 
 create table public.users (
@@ -49,16 +43,16 @@ alter table public.users replica identity full;
 
 create or replace function public.handle_new_user()
 returns trigger as $$
-declare
-    first_name text := new.raw_user_meta_data->>'first_name';
-    last_name  text := new.raw_user_meta_data->>'last_name';
-    full_name  text := nullif(trim(coalesce(first_name, '') || ' ' || coalesce(last_name, '')), '');
+DECLARE
+    first_name TEXT:= new.raw_user_meta_data->>'first_name';
+    last_name  TEXT:= new.raw_user_meta_data->>'last_name';
+    full_name  TEXT:= NULLIF(TRIM(COALESCE(first_name, '') || ' ' || COALESCE(last_name, '')), '');
 begin
     insert into public.users (id, username, role)
     values (new.id, full_name, 'user')
     on conflict (id) do nothing;
 
-    return new;
+    return NEW;
 end;
 $$ language plpgsql security definer set search_path = auth, public;
 
@@ -143,36 +137,34 @@ begin
         raise exception 'user with id % does not exist.', user_id;
     end if;
 
-    delete from public.users
-    where id = user_id;
 
-    delete from auth.users
-    where id = user_id;
+    delete from public.users where id = user_id;
+    DELETE FROM auth.users WHERE id = user_id;
 
     return;
 end;
 $$ language plpgsql security definer set search_path = auth, public;
 grant execute on function public.delete_user(uuid) to authenticated;
 
-create or replace function public.create_user_internal(
-    email text,
-    password text,
+CREATE OR REPLACE FUNCTION public.create_user_internal(
+    email TEXT,
+    password TEXT,
     role public.app_role,
-    first_name text DEFAULT null,
-    last_name text DEFAULT null,
-    last_sign_in timestamptz DEFAULT null,
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now()
-) returns uuid as $$
-declare
-    user_id uuid;
-    encrypted_pw text;
+    first_name TEXT DEFAULT NULL,
+    last_name TEXT DEFAULT NULL,
+    last_sign_in TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+) RETURNS UUID AS $$
+DECLARE
+    user_id UUID;
+    encrypted_pw TEXT;
     user_role public.app_role;
-begin
+BEGIN
     user_id := extensions.gen_random_uuid();
     encrypted_pw := extensions.crypt(password, extensions.gen_salt('bf'));
 
-    insert into auth.users (
+    INSERT INTO auth.users (
         instance_id,
         id,
         aud,
@@ -191,7 +183,7 @@ begin
         email_change_token_new,
         recovery_token
     ) 
-    select
+    SELECT
         '00000000-0000-0000-0000-000000000000',
         user_id,
         'authenticated',
@@ -199,11 +191,11 @@ begin
         email,
         encrypted_pw,
         created_at,
-        null,
-        coalesce(last_sign_in, created_at),
+        NULL,
+        COALESCE(last_sign_in, created_at),
         '{"provider":"email","providers":["email"]}',      
-        jsonb_build_object(
-            'sub', user_id::text,
+        JSONB_BUILD_OBJECT(
+            'sub', user_id::TEXT,
             'email', email,
             'email_verified', 'true',
             'phone_verified', 'false',
@@ -211,13 +203,13 @@ begin
             'last_name', last_name
         ),
         created_at,
-        coalesce(updated_at, created_at),
+        COALESCE(updated_at, created_at),
         '',
         '',
         '',
         '';
    
-    insert into auth.identities (
+    INSERT INTO auth.identities (
         id,
         provider_id,
         user_id,
@@ -226,46 +218,46 @@ begin
         last_sign_in_at,
         created_at,
         updated_at
-    ) values (
+    ) VALUES (
         extensions.gen_random_uuid(),
         user_id,
         user_id,
-        jsonb_build_object(
-            'sub', user_id::text,
+        JSONB_BUILD_OBJECT(
+            'sub', user_id::TEXT,
             'email', email,
             'email_verified', 'true',
             'phone_verified', 'false'
         ),
         'email',
-        coalesce(last_sign_in, created_at),
+        COALESCE(last_sign_in, created_at),
         created_at,
-        coalesce(updated_at, created_at)
+        COALESCE(updated_at, created_at)
     );
 
     user_role := role;
-    update public.users set role = user_role where id = user_id;
+    UPDATE public.users SET role = user_role WHERE id = user_id;
 
-    return user_id;
-end;
+    RETURN user_id;
+END;
 $$ language plpgsql security definer set search_path = auth, public;
 revoke execute on function public.create_user_internal(text, text, public.app_role, text, text, timestamptz, timestamptz, timestamptz) from authenticated, anon, public;
 
-create or replace function public.create_user(
-    email text,
-    password text,
+CREATE OR REPLACE FUNCTION public.create_user(
+    email TEXT,
+    password TEXT,
     role public.app_role,
-    first_name text DEFAULT null,
-    last_name text DEFAULT null,
-    last_sign_in timestamptz DEFAULT null,
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now()
-) returns uuid as $$
-begin
-    if not public.authorize('public.create_user') then
-        raise exception 'Insufficient privileges. Must have public.create_user permission.';
-    end if;
+    first_name TEXT DEFAULT NULL,
+    last_name TEXT DEFAULT NULL,
+    last_sign_in TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+) RETURNS UUID AS $$
+BEGIN
+    IF NOT public.authorize('public.create_user') THEN
+        RAISE EXCEPTION 'Insufficient privileges. Must have public.create_user permission.';
+    END IF;
 
-    return public.create_user_internal(
+    RETURN public.create_user_internal(
         email,
         password,
         role,
@@ -275,82 +267,83 @@ begin
         created_at,
         updated_at
     );
-end;
+END;
 $$ language plpgsql security definer set search_path = auth, public;
 grant execute on function public.create_user(text, text, public.app_role, text, text, timestamptz, timestamptz, timestamptz) to authenticated;
 
--- transactions
+-- Transactions
+CREATE TYPE public.transaction_type AS ENUM ('deposit', 'credit');
+CREATE TYPE public.transaction_status AS ENUM ('pending', 'completed', 'failed');
+CREATE TYPE public.transaction_subtype AS ENUM ('refund', 'reward', 'purchase');
 
-create type public.transaction_type as enum ('deposit', 'credit');
-create type public.transaction_status as enum ('pending', 'completed', 'failed');
-create type public.transaction_subtype as enum ('refund', 'reward', 'purchase');
-
-create table public.transactions (
-  id uuid primary key,
+CREATE TABLE public.transactions (
+  id UUID PRIMARY KEY,
   user_id uuid references auth.users not null,
-  description text,
-  type public.transaction_type not null,
-  subtype public.transaction_subtype not null,
-  amount decimal(10, 2) not null,
-  status public.transaction_status not null,
-  created_at timestamp not null default now(),
-  updated_at timestamp not null default now()
+  description TEXT,
+  type public.transaction_type NOT NULL,
+  subtype public.transaction_subtype NOT NULL,
+  amount DECIMAL(10, 2) NOT NULL,
+  status public.transaction_status NOT NULL,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-comment on table public.transactions is 'Stores all user transactions with their details.';
-comment on column public.transactions.user_id is 'Foreign key referencing the user in the auth.users table.';
+COMMENT ON TABLE public.transactions IS 'Stores all user transactions with their details.';
+COMMENT ON COLUMN public.transactions.user_id IS 'Foreign key referencing the user in the auth.users table.';
 alter table public.transactions enable row level security;
 
-create view transactions_with_username with (security_invoker = true) as
-select 
-    t.id as transaction_id, 
+
+CREATE VIEW transactions_with_username WITH (security_invoker = true) AS
+SELECT 
+    t.id AS transaction_id, 
     u.username, 
     t.description, 
     t.amount, 
     t.type,
     t.subtype,
     t.status,
-    t.created_at
-from public.transactions t
-join public.users u on t.user_id = u.id;
+    t.created_at,
+FROM public.transactions t
+JOIN public.users u ON t.user_id = u.id;
 
 create policy "admin can select public.transactions" on public.transactions for select using (public.authorize('public.transactions.select'));
 create policy "user can select public.transactions" on public.transactions for select using (public.authorize('public.transactions.select'));
 
-create or replace function public.get_revenue_current_month()
-returns jsonb
-language plpgsql
-as $$
-declare
-    start_date  timestamp;
-    end_date    timestamp;
-    date_range  text;
-    total_value numeric;
-begin
-    if not public.authorize('public.transactions.select') then
-        raise exception 'Insufficient privileges. Must have public.transactions.select permission.';
-    end if;
+
+CREATE OR REPLACE FUNCTION public.get_revenue_current_month()
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    start_date  TIMESTAMP;
+    end_date    TIMESTAMP;
+    date_range  TEXT;
+    total_value NUMERIC;
+BEGIN
+    IF NOT public.authorize('public.transactions.select') THEN
+        RAISE EXCEPTION 'Insufficient privileges. Must have public.transactions.select permission.';
+    END IF;
 
     start_date := date_trunc('month', now());
     end_date   := now();
 
-    date_range := to_char(start_date, 'fmdd fmmonth') || ' - ' 
-                  || to_char(end_date, 'fmdd fmmonth');
+    date_range := to_char(start_date, 'FMDD FMMonth') || ' - ' 
+                  || to_char(end_date, 'FMDD FMMonth');
 
-    select coalesce(sum(amount), 0)
-      into total_value
-      from public.transactions
-     where status = 'completed'
-       and subtype in ('reward', 'purchase')
-       and created_at >= start_date
-       and created_at <= end_date;
+    SELECT COALESCE(SUM(amount), 0)
+      INTO total_value
+      FROM public.transactions
+     WHERE status = 'completed'
+       AND subtype IN ('reward', 'purchase')
+       AND created_at >= start_date
+       AND created_at <= end_date;
 
-    return (
-       select jsonb_build_object(
+    RETURN (
+       SELECT jsonb_build_object(
          'type', 'month',
          'range', date_range,
          'total', total_value,
-         'revenues', coalesce(
+         'revenues', COALESCE(
             jsonb_agg(
               jsonb_build_object(
                 'subtype', t.subtype,
@@ -360,52 +353,52 @@ begin
             '[]'::jsonb
          )
        )
-       from (
-         select subtype, sum(amount) as sub_amount
-           from public.transactions
-          where status = 'completed'
-            and subtype in ('reward', 'purchase')
-            and created_at >= start_date
-            and created_at <= end_date
-          group by subtype
+       FROM (
+         SELECT subtype, SUM(amount) AS sub_amount
+           FROM public.transactions
+          WHERE status = 'completed'
+            AND subtype IN ('reward', 'purchase')
+            AND created_at >= start_date
+            AND created_at <= end_date
+          GROUP BY subtype
        ) t
     );
-end;
+END;
 $$;
-grant execute on function public.get_revenue_current_month() to authenticated;
+GRANT EXECUTE ON FUNCTION public.get_revenue_current_month() TO authenticated;
 
-create or replace function public.get_revenue_current_week()
-returns jsonb
-language plpgsql
-as $$
-declare
-    start_date  timestamp;
-    end_date    timestamp;
-    date_range  text;
-    total_value numeric;
-begin
-    if not public.authorize('public.transactions.select') then
-        raise exception 'Insufficient privileges. Must have public.transactions.select permission.';
-    end if;
+CREATE OR REPLACE FUNCTION public.get_revenue_current_week()
+RETURNS JSONB
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    start_date  TIMESTAMP;
+    end_date    TIMESTAMP;
+    date_range  TEXT;
+    total_value NUMERIC;
+BEGIN
+    IF NOT public.authorize('public.transactions.select') THEN
+        RAISE EXCEPTION 'Insufficient privileges. Must have public.transactions.select permission.';
+    END IF;
     start_date := date_trunc('week', now()::date + 1);
     end_date   := now();
 
-    date_range := to_char(start_date, 'fmdd fmmonth') || ' - ' || to_char(end_date, 'fmdd fmmonth');
+    date_range := to_char(start_date, 'FMDD FMMonth') || ' - ' || to_char(end_date, 'FMDD FMMonth');
 
-    select coalesce(sum(amount), 0)
-      into total_value
-      from public.transactions
-     where status = 'completed'
-       and subtype in ('reward', 'purchase')
-       and created_at >= start_date
-       and created_at <= end_date;
+    SELECT COALESCE(SUM(amount), 0)
+      INTO total_value
+      FROM public.transactions
+     WHERE status = 'completed'
+       AND subtype IN ('reward', 'purchase')
+       AND created_at >= start_date
+       AND created_at <= end_date;
 
-    return (
-       select jsonb_build_object(
+    RETURN (
+       SELECT jsonb_build_object(
          'type', 'week',
          'range', date_range,
          'total', total_value,
-         'revenues', coalesce(
+         'revenues', COALESCE(
             jsonb_agg(
               jsonb_build_object(
                 'subtype', t.subtype,
@@ -415,19 +408,19 @@ begin
             '[]'::jsonb
          )
        )
-       from (
-         select subtype, sum(amount) as sub_amount
-           from public.transactions
-          where status = 'completed'
-            and subtype in ('reward', 'purchase')
-            and created_at >= start_date
-            and created_at <= end_date
-          group by subtype
+       FROM (
+         SELECT subtype, SUM(amount) AS sub_amount
+           FROM public.transactions
+          WHERE status = 'completed'
+            AND subtype IN ('reward', 'purchase')
+            AND created_at >= start_date
+            AND created_at <= end_date
+          GROUP BY subtype
        ) t
     );
-end;
+END;
 $$;
-grant execute on function public.get_revenue_current_week() to authenticated;
+GRANT EXECUTE ON FUNCTION public.get_revenue_current_week() TO authenticated;
 
 insert into public.role_permissions (role, permission)
 values

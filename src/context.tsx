@@ -34,6 +34,8 @@ export const WithUser = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [, setSession] = useState<Session | null>(null);
 
+  console.log(user);
+
   useLayoutEffect(() => {
     const saveSession = (session: Session | null) => {
       setSession(session);
