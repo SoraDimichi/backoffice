@@ -257,7 +257,6 @@ export function DataTable<TValue>(
           Page {page} of {pageCount}
         </span>
         <Button
-          variant="outline"
           size="sm"
           onClick={() =>
             table.setPageIndex(table.getState().pagination.pageIndex - 1)
@@ -267,7 +266,6 @@ export function DataTable<TValue>(
           Previous
         </Button>
         <Button
-          variant="outline"
           size="sm"
           onClick={() =>
             table.setPageIndex(table.getState().pagination.pageIndex + 1)
