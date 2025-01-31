@@ -5,7 +5,7 @@ import { FormButton } from "./CreateUserForm";
 import { RoleSelect as RS } from "./RoleSelect";
 import { Boundary, useErrorBoundary } from "@/components/ui/Boundary";
 import { Header, logout } from "@/components/Header";
-import { User } from "./type";
+import { UserView } from "./type";
 import { Progress } from "@/components/ui/progress";
 import { useUser } from "@/context";
 import { useNavigate } from "react-router-dom";
@@ -88,7 +88,7 @@ const DeleteButton: typeof DeleteButtonInner = (p) => (
   </Boundary>
 );
 
-const UserItem = ({ id, role, username, email }: User) => {
+const UserItem = ({ id, role, username, email }: UserView) => {
   const [mounted, setMounted] = useState(true);
 
   if (!mounted) return null;
@@ -119,7 +119,10 @@ const getUsers = async () => {
   return data;
 };
 
-type UsersInnerP = { users: User[] | null; setUsers: (users: User[]) => void };
+type UsersInnerP = {
+  users: UserView[] | null;
+  setUsers: (users: UserView[]) => void;
+};
 const UsersInner = ({ users, setUsers }: UsersInnerP) => {
   const { showBoundary } = useErrorBoundary();
 
@@ -143,10 +146,10 @@ const Users: typeof UsersInner = (p) => (
   </Boundary>
 );
 
-export type AddUser = (user: User) => void;
+export type AddUser = (user: UserView) => void;
 const AdminInner = () => {
-  const [users, setUsers] = useState<User[] | null>(null);
-  const addUser = (user: User) =>
+  const [users, setUsers] = useState<UserView[] | null>(null);
+  const addUser = (user: UserView) =>
     setUsers((prev) => {
       if (!prev) return [user];
       return [...prev, user];

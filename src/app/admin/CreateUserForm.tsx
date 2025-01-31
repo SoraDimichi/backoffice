@@ -74,6 +74,7 @@ const CreateUserForm = (p: CreateUserFormProps) => {
           id,
           username: `${data.first_name} ${data.last_name}`,
           role: data.role,
+          email: data.email,
         }),
       )
       .then(close)
