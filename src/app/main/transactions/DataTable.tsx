@@ -144,7 +144,7 @@ export function DataTable<TValue>(
             ))}
           </SelectContent>
         </Select>
-        Sybtype
+        Subtype
         <Select
           defaultValue={ALL}
           value={subtype}
