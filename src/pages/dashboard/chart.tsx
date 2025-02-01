@@ -17,6 +17,8 @@ import { Boundary } from "@/components/ui/Boundary";
 import { Response } from ".";
 import type { Revenue } from "./types";
 
+const color = ["359 2% 90%", "240 1% 74%"];
+
 export function ChartInner(p: Revenue) {
   const { total, revenues, type, range } = p;
 
@@ -25,7 +27,7 @@ export function ChartInner(p: Revenue) {
       revenues.reduce(
         (acc, { subtype }, i) => ({
           ...acc,
-          [subtype]: { label: subtype, color: `hsl(var(--chart-${i + 1}))` },
+          [subtype]: { label: subtype, color: `hsl(${color[i]})` },
         }),
         { total_revenue: { label: type } },
       ),
@@ -34,10 +36,10 @@ export function ChartInner(p: Revenue) {
 
   const chartData = useMemo(
     () =>
-      revenues.map((data) => ({
+      revenues.map((data, i) => ({
         ...data,
         total_revenue: Math.round(data.revenue),
-        fill: `var(--color-${data.subtype})`,
+        fill: `hsl(${color[i]})`,
       })),
     [revenues],
   );
