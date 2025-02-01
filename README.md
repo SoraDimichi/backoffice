@@ -50,8 +50,8 @@ This project is a **Backoffice System** designed to manage users and transaction
 ### 2. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/full-stack-assignment.git
-cd full-stack-assignment
+git clone https://github.com/SoraDimichi/backoffice.git
+cd backoffice
 ```
 
 ### 3. Configure Environment Variables
