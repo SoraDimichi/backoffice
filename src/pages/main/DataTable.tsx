@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useReactTable,
   getCoreRowModel,
@@ -7,7 +7,6 @@ import {
   type Row,
 } from "@tanstack/react-table";
 import { useDebouncedCallback } from "use-debounce";
-
 import { getTransactions, LIMIT } from "./api";
 import {
   Transaction,
@@ -35,24 +34,22 @@ import { Button } from "@/components/ui/button";
 import { Boundary, useErrorBoundary } from "@/components/ui/Boundary";
 import { columns } from "./Columns";
 
+const ALL = "All" as const;
+
 interface DataTableProps<TValue> {
   columns: ColumnDef<Transaction, TValue>[];
-  data: Transaction[];
 }
+const initial = { data: [], count: 0 };
 
-const ALL = "All" as const;
-export function DataTable<TValue>(
-  p: DataTableProps<TValue> & { setData: (data: Transaction[]) => void },
-) {
-  const { columns, setData, data } = p;
+type State = { data: Transaction[]; count: number };
+export const DataTable = <TValue,>(p: DataTableProps<TValue>) => {
+  const { columns } = p;
   const { showBoundary } = useErrorBoundary();
   const [page, setPage] = useState(1);
   const [type, setType] = useState<TransactionType | typeof ALL>(ALL);
   const [subtype, setSubtype] = useState<TransactionSubtype | typeof ALL>(ALL);
   const [status, setStatus] = useState<TransactionStatus | typeof ALL>(ALL);
-
   const [searchTerm, setSearchTerm] = useState("");
-
   const setDSearchTerm = useDebouncedCallback((e) => {
     setSearchTerm(e.target.value);
     setPage(1);
@@ -60,28 +57,24 @@ export function DataTable<TValue>(
   const [minAmount, setMinAmount] = useState<number | undefined>(undefined);
   const [maxAmount, setMaxAmount] = useState<number | undefined>(undefined);
 
-  const [totalCount, setTotalCount] = useState(0);
-  const pageCount = Math.ceil(totalCount / LIMIT) || 1;
+  const [tableState, setTableState] = useState<State>(initial);
 
-  const cb = useCallback(async () => {
-    try {
-      const { data, count } = await getTransactions({
-        page,
-        searchTerm: searchTerm || undefined,
-        type: type === ALL ? undefined : type,
-        subtype: subtype === ALL ? undefined : subtype,
-        status: status === ALL ? undefined : status,
-        minAmount,
-        maxAmount,
-      });
-      setData(data as Transaction[]);
-      setTotalCount(count ?? 0);
-    } catch (error) {
-      showBoundary(error);
-    }
+  const pageCount = Math.ceil(tableState.count / LIMIT) || 1;
+
+  useEffect(() => {
+    getTransactions({
+      page,
+      searchTerm: searchTerm || undefined,
+      type: type === ALL ? undefined : type,
+      subtype: subtype === ALL ? undefined : subtype,
+      status: status === ALL ? undefined : status,
+      minAmount,
+      maxAmount,
+    })
+      .then(setTableState)
+      .catch(showBoundary);
   }, [
     page,
-    setData,
     searchTerm,
     type,
     subtype,
@@ -91,22 +84,13 @@ export function DataTable<TValue>(
     showBoundary,
   ]);
 
-  useEffect(() => {
-    cb();
-  }, [cb]);
-
   const table = useReactTable({
-    data,
+    data: tableState.data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     pageCount,
-    state: {
-      pagination: {
-        pageIndex: page - 1,
-        pageSize: LIMIT,
-      },
-    },
+    state: { pagination: { pageIndex: page - 1, pageSize: LIMIT } },
     onPaginationChange: (updater) => {
       if (typeof updater === "function") {
         setPage((oldPage) => {
@@ -129,7 +113,7 @@ export function DataTable<TValue>(
         Type
         <Select
           value={type}
-          onValueChange={(val: typeof type) => {
+          onValueChange={(val: TransactionType) => {
             setType(val);
             setPage(1);
           }}
@@ -140,7 +124,9 @@ export function DataTable<TValue>(
           </SelectTrigger>
           <SelectContent>
             {[ALL, ...Object.values(TransactionType)].map((item) => (
-              <SelectItem value={item}>{item}</SelectItem>
+              <SelectItem value={item} key={item}>
+                {item}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -148,7 +134,7 @@ export function DataTable<TValue>(
         <Select
           defaultValue={ALL}
           value={subtype}
-          onValueChange={(val: typeof subtype) => {
+          onValueChange={(val: TransactionSubtype) => {
             setSubtype(val);
             setPage(1);
           }}
@@ -158,14 +144,16 @@ export function DataTable<TValue>(
           </SelectTrigger>
           <SelectContent>
             {[ALL, ...Object.values(TransactionSubtype)].map((item) => (
-              <SelectItem value={item}>{item}</SelectItem>
+              <SelectItem value={item} key={item}>
+                {item}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
         Status
         <Select
           value={status}
-          onValueChange={(val: typeof status) => {
+          onValueChange={(val: TransactionStatus) => {
             setStatus(val);
             setPage(1);
           }}
@@ -176,7 +164,9 @@ export function DataTable<TValue>(
           </SelectTrigger>
           <SelectContent>
             {[ALL, ...Object.values(TransactionStatus)].map((item) => (
-              <SelectItem value={item}>{item}</SelectItem>
+              <SelectItem value={item} key={item}>
+                {item}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -251,7 +241,6 @@ export function DataTable<TValue>(
           </TableBody>
         </Table>
       </div>
-
       <div className="flex items-center justify-end space-x-2 py-4">
         <span className="text-sm text-muted-foreground">
           Page {page} of {pageCount}
@@ -277,17 +266,16 @@ export function DataTable<TValue>(
       </div>
     </div>
   );
-}
+};
 
-const Row = ({ row }: { row: Row<Transaction> }) => {
+const Row = (p: { row: Row<Transaction> }) => {
+  const { row } = p;
   const [visible, setVisible] = useState(false);
-
   return (
     <TableRow key={row.id} className="relative">
       {row.getVisibleCells().map((cell, i) => {
         const item = (cell.getValue() ?? "").toString();
         const stars = "*".repeat(item.length);
-
         return (
           <TableCell key={cell.id}>
             {i < 2
@@ -304,11 +292,9 @@ const Row = ({ row }: { row: Row<Transaction> }) => {
 };
 
 export const TransactionsTable = () => {
-  const [data, setData] = useState<Transaction[]>([]);
-
   return (
     <Boundary>
-      <DataTable columns={columns} data={data} setData={setData} />
+      <DataTable columns={columns} />
     </Boundary>
   );
 };
