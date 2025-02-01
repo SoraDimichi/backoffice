@@ -24,6 +24,8 @@ const Dashboards = () => {
 
 export const Dashboard = () => (
   <Layout buttons={<Home />}>
-    <Dashboards />
+    <div className="flex  justify-center items-center gap-[30px] min-h-full">
+      <Dashboards />
+    </div>
   </Layout>
 );

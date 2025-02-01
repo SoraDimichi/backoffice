@@ -1,18 +1,11 @@
 "use client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -25,6 +18,7 @@ import { useForm } from "react-hook-form";
 import { useEffect } from "react";
 import { createUserSchema } from "./schemas";
 import { createUser } from "./api";
+import { RoleSelect } from "@/pages/admin/RoleSelect";
 
 export type User = {
   id: string;
@@ -65,8 +59,9 @@ export const CreateUserForm = (p: CreateUserFormProps) => {
     return () => subscription.unsubscribe();
   }, [clearErrors, errors, watch]);
 
-  const onSubmit = async (data: z.infer<typeof createUserSchema>) =>
-    createUser(data)
+  const onSubmit = async (data: z.infer<typeof createUserSchema>) => {
+    console.log(data);
+    await createUser(data)
       .then((id) =>
         addUser({
           id,
@@ -77,13 +72,13 @@ export const CreateUserForm = (p: CreateUserFormProps) => {
       )
       .then(close)
       .catch((error) => setError("root", { message: error.message }));
+  };
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
           <CardTitle className="text-2xl">Create User</CardTitle>
-          <CardDescription>Enter user details</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -102,7 +97,6 @@ export const CreateUserForm = (p: CreateUserFormProps) => {
                       <FormControl>
                         <Input disabled={disabled} type="text" {...field} />
                       </FormControl>
-                      <FormDescription>User's given name.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -116,7 +110,6 @@ export const CreateUserForm = (p: CreateUserFormProps) => {
                       <FormControl>
                         <Input disabled={disabled} type="text" {...field} />
                       </FormControl>
-                      <FormDescription>User's family name.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -135,7 +128,6 @@ export const CreateUserForm = (p: CreateUserFormProps) => {
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>User's email.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -149,9 +141,22 @@ export const CreateUserForm = (p: CreateUserFormProps) => {
                       <FormControl>
                         <Input disabled={disabled} type="password" {...field} />
                       </FormControl>
-                      <FormDescription>
-                        Enter a secure password.
-                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Role</FormLabel>
+                      <FormControl>
+                        <RoleSelect
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
