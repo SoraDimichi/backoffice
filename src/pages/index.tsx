@@ -1,8 +1,11 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
-import { useUser } from "./context";
-import { Auth, Admin, Main, Dashboard } from "@/app";
 import { Progress } from "@/components/ui/progress";
+import { Main } from "./main";
+import { Auth } from "./auth";
+import { Admin } from "./admin";
+import { Dashboard } from "./dashboard";
+import { useUser } from "../context";
 
 export const App: React.FC = () => {
   const { userLoaded } = useUser();

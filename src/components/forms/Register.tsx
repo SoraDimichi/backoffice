@@ -1,4 +1,3 @@
-"use client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -9,6 +8,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { useEffect } from "react";
 import {
   Form,
   FormControl,
@@ -18,43 +18,27 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-
-import { z } from "zod";
+import { Checkbox } from "@/components/ui/checkbox";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { supabase } from "@/lib/supabaseClient";
-import { useEffect, useState } from "react";
-import { AddUser } from ".";
-import { createUserSchema } from "../auth/Register";
+import { z } from "zod";
+import { registerUserSchema } from "./schemas";
+import { register } from "./api";
 
-const userSchema = z.object({
-  ...createUserSchema,
-  role: z.enum(["user", "admin"], { required_error: "Please select a role." }),
-});
-
-type CreateUserFormProps = React.ComponentPropsWithoutRef<"div"> & {
-  addUser: AddUser;
-  close: () => void;
-};
-type CreateUserP = z.infer<typeof userSchema>;
-
-const createUser = async ({ email, ...p }: CreateUserP) => {
-  const { data, error } = await supabase.rpc("create_user", { email, ...p });
-  if (error) throw Error(error.message);
-
-  return data;
+type RegisterFormValues = z.infer<typeof registerUserSchema>;
+type RegisterProps = React.ComponentPropsWithoutRef<"div"> & {
+  toggle: () => void;
 };
 
-const CreateUserForm = (p: CreateUserFormProps) => {
-  const { className, close, addUser, ...props } = p;
-  const form = useForm<z.infer<typeof userSchema>>({
-    resolver: zodResolver(userSchema),
+export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
+  const form = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerUserSchema),
     defaultValues: {
-      email: "",
       first_name: "",
       last_name: "",
+      email: "",
       password: "",
-      role: "user",
+      terms: false,
     },
   });
 
@@ -63,29 +47,25 @@ const CreateUserForm = (p: CreateUserFormProps) => {
   const disabled = isSubmitting && isLoading && isSubmitted;
 
   useEffect(() => {
-    const subscription = watch(() => "root" in errors && clearErrors("root"));
+    const subscription = watch(() => {
+      if ("root" in errors) clearErrors("root");
+    });
     return () => subscription.unsubscribe();
   }, [clearErrors, errors, watch]);
 
-  const onSubmit = async (data: z.infer<typeof userSchema>) =>
-    createUser(data)
-      .then((id) =>
-        addUser({
-          id,
-          username: `${data.first_name} ${data.last_name}`,
-          role: data.role,
-          email: data.email,
-        }),
-      )
-      .then(close)
-      .catch((error) => setError("root", { message: error.message }));
+  const onSubmit = (data: RegisterFormValues) =>
+    register(data).catch((error) =>
+      setError("root", { type: "manual", message: error.message }),
+    );
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Create User</CardTitle>
-          <CardDescription>Enter user details</CardDescription>
+          <CardTitle className="text-2xl">Register</CardTitle>
+          <CardDescription>
+            Enter your details to create a new account
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -104,7 +84,7 @@ const CreateUserForm = (p: CreateUserFormProps) => {
                       <FormControl>
                         <Input disabled={disabled} type="text" {...field} />
                       </FormControl>
-                      <FormDescription>User's given name.</FormDescription>
+                      <FormDescription>Your given name.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -118,7 +98,7 @@ const CreateUserForm = (p: CreateUserFormProps) => {
                       <FormControl>
                         <Input disabled={disabled} type="text" {...field} />
                       </FormControl>
-                      <FormDescription>User's family name.</FormDescription>
+                      <FormDescription>Your family name.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -137,7 +117,9 @@ const CreateUserForm = (p: CreateUserFormProps) => {
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>User's email.</FormDescription>
+                      <FormDescription>
+                        We'll never share your email.
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -152,8 +134,27 @@ const CreateUserForm = (p: CreateUserFormProps) => {
                         <Input disabled={disabled} type="password" {...field} />
                       </FormControl>
                       <FormDescription>
-                        Enter a secure password.
+                        Enter your secure password.
                       </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="terms"
+                  render={({ field }) => (
+                    <FormItem className="flex items-center space-x-2">
+                      <FormControl>
+                        <Checkbox
+                          disabled={disabled}
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <FormLabel htmlFor="terms" className="flex-1">
+                        I agree to the terms and conditions
+                      </FormLabel>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -167,33 +168,18 @@ const CreateUserForm = (p: CreateUserFormProps) => {
               </div>
             </form>
           </Form>
+          <div className="mt-4 text-center text-sm">
+            Already have an account?{" "}
+            <button
+              type="button"
+              onClick={props.toggle}
+              className="underline underline-offset-4"
+            >
+              Login
+            </button>
+          </div>
         </CardContent>
       </Card>
-    </div>
-  );
-};
-
-type FormButtonP = { className: string; addUser: AddUser };
-export const FormButton = ({ className, addUser }: FormButtonP) => {
-  const [shown, setShowForm] = useState(false);
-
-  const close = () => setShowForm(false);
-
-  return (
-    <div>
-      <Button className={className} onClick={() => setShowForm(true)}>
-        Create New User
-      </Button>
-      {shown && (
-        <div className="fixed inset-0 bg-black/80 bg-opacity-20 flex items-center justify-center z-50">
-          <div className="relative min-w-75">
-            <CreateUserForm addUser={addUser} close={close} />
-            <Button className="absolute absolute top-7 right-4" onClick={close}>
-              Close
-            </Button>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

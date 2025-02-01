@@ -1,3 +1,4 @@
+"use client";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,8 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { supabase } from "@/lib/supabaseClient";
-import { useEffect } from "react";
 import {
   Form,
   FormControl,
@@ -19,46 +18,41 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Checkbox } from "@/components/ui/checkbox";
+
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { loginUserSchema } from "./Login";
+import { useEffect } from "react";
+import { createUserSchema } from "./schemas";
+import { createUser } from "./api";
 
-export const createUserSchema = {
-  ...loginUserSchema,
-  first_name: z
-    .string()
-    .min(1, { message: "First name is required." })
-    .max(20, { message: "First name must be less than 20 characters." }),
-  last_name: z
-    .string()
-    .min(1, { message: "Last name is required." })
-    .max(20, { message: "Last name must be less than 20 characters." }),
+export type User = {
+  id: string;
+  role: string;
+  username: string;
 };
 
-const registerSchema = z.object({
-  ...createUserSchema,
-  terms: z.boolean().refine((val) => val, {
-    message: "You must accept the terms and conditions.",
-  }),
-});
-
-type RegisterFormValues = z.infer<typeof registerSchema>;
-
-type RegisterProps = React.ComponentPropsWithoutRef<"div"> & {
-  toggle: () => void;
+export type UserView = User & {
+  email: string;
 };
 
-export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
-  const form = useForm<RegisterFormValues>({
-    resolver: zodResolver(registerSchema),
+export type AddUser = (user: UserView) => void;
+
+type CreateUserFormProps = React.ComponentPropsWithoutRef<"div"> & {
+  addUser: AddUser;
+  close: () => void;
+};
+
+export const CreateUserForm = (p: CreateUserFormProps) => {
+  const { className, close, addUser, ...props } = p;
+  const form = useForm<z.infer<typeof createUserSchema>>({
+    resolver: zodResolver(createUserSchema),
     defaultValues: {
+      email: "",
       first_name: "",
       last_name: "",
-      email: "",
       password: "",
-      terms: false,
+      role: "user",
     },
   });
 
@@ -67,37 +61,29 @@ export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
   const disabled = isSubmitting && isLoading && isSubmitted;
 
   useEffect(() => {
-    const subscription = watch(() => {
-      if ("root" in errors) clearErrors("root");
-    });
+    const subscription = watch(() => "root" in errors && clearErrors("root"));
     return () => subscription.unsubscribe();
   }, [clearErrors, errors, watch]);
 
-  const onSubmit = (data: RegisterFormValues) => {
-    supabase.auth
-      .signUp({
-        email: data.email,
-        password: data.password,
-        options: {
-          data: {
-            first_name: data.first_name,
-            last_name: data.last_name,
-          },
-        },
-      })
-      .then(({ error }) => {
-        if (error) setError("root", { type: "manual", message: error.message });
-      });
-  };
+  const onSubmit = async (data: z.infer<typeof createUserSchema>) =>
+    createUser(data)
+      .then((id) =>
+        addUser({
+          id,
+          username: `${data.first_name} ${data.last_name}`,
+          role: data.role,
+          email: data.email,
+        }),
+      )
+      .then(close)
+      .catch((error) => setError("root", { message: error.message }));
 
   return (
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader>
-          <CardTitle className="text-2xl">Register</CardTitle>
-          <CardDescription>
-            Enter your details to create a new account
-          </CardDescription>
+          <CardTitle className="text-2xl">Create User</CardTitle>
+          <CardDescription>Enter user details</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -116,7 +102,7 @@ export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
                       <FormControl>
                         <Input disabled={disabled} type="text" {...field} />
                       </FormControl>
-                      <FormDescription>Your given name.</FormDescription>
+                      <FormDescription>User's given name.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -130,7 +116,7 @@ export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
                       <FormControl>
                         <Input disabled={disabled} type="text" {...field} />
                       </FormControl>
-                      <FormDescription>Your family name.</FormDescription>
+                      <FormDescription>User's family name.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -149,9 +135,7 @@ export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>
-                        We'll never share your email.
-                      </FormDescription>
+                      <FormDescription>User's email.</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -166,27 +150,8 @@ export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
                         <Input disabled={disabled} type="password" {...field} />
                       </FormControl>
                       <FormDescription>
-                        Enter your secure password.
+                        Enter a secure password.
                       </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="terms"
-                  render={({ field }) => (
-                    <FormItem className="flex items-center space-x-2">
-                      <FormControl>
-                        <Checkbox
-                          disabled={disabled}
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <FormLabel htmlFor="terms" className="flex-1">
-                        I agree to the terms and conditions
-                      </FormLabel>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -200,16 +165,6 @@ export const Register: React.FC<RegisterProps> = ({ className, ...props }) => {
               </div>
             </form>
           </Form>
-          <div className="mt-4 text-center text-sm">
-            Already have an account?{" "}
-            <button
-              type="button"
-              onClick={props.toggle}
-              className="underline underline-offset-4"
-            >
-              Login
-            </button>
-          </div>
         </CardContent>
       </Card>
     </div>

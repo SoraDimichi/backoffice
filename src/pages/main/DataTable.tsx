@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-table";
 import { useDebouncedCallback } from "use-debounce";
 
-import { getTransactions, LIMIT } from "./getTransactions";
+import { getTransactions, LIMIT } from "./api";
 import {
   Transaction,
   TransactionType,

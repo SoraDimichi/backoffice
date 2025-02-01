@@ -1,10 +1,9 @@
 import { useState } from "react";
-import { Login } from "./Login";
-import { Register } from "./Register";
+import { Login } from "@/components/forms/Login";
+import { Register } from "@/components/forms/Register";
 
 export const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
-
   const toggleForm = () => setIsLogin((prev) => !prev);
 
   return (

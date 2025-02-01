@@ -1,31 +1,16 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
-import { FormButton } from "./CreateUserForm";
+import { FormButton } from "./FormButton";
 import { RoleSelect as RS } from "./RoleSelect";
 import { Boundary, useErrorBoundary } from "@/components/ui/Boundary";
-import { Header, logout } from "@/components/Header";
 import { UserView } from "./type";
 import { Progress } from "@/components/ui/progress";
 import { useUser } from "@/context";
 import { useNavigate } from "react-router-dom";
-
-const deleteUser = async (p_user_id: string) => {
-  const { data, error } = await supabase.rpc("delete_user", { p_user_id });
-  if (error) throw Error(error.message);
-  return data;
-};
-
-const updateRole = async (value: string, id: string) => {
-  const { error, data } = await supabase
-    .from("users")
-    .update({ role: value })
-    .eq("id", id)
-    .select("id");
-
-  if (error) throw Error(error?.message);
-  return data[0]?.id;
-};
+import { deleteUser, updateRole } from "./api";
+import { Home, Layout } from "@/components/layout";
+import { logout } from "@/components/layout/api";
 
 const RoleSelectInner = (p: { role: string; id: string }) => {
   const { role, id } = p;
@@ -37,7 +22,7 @@ const RoleSelectInner = (p: { role: string; id: string }) => {
   const update = async (value: string) => {
     setLoading(true);
     try {
-      const user_id = await updateRole(value, id);
+      const [{ id: user_id }] = await updateRole(value, id);
       if (user?.id === user_id) await logout().finally(() => push("/auth"));
       setLoading(false);
     } catch (error) {
@@ -145,7 +130,6 @@ const Users: typeof UsersInner = (p) => (
   </Boundary>
 );
 
-export type AddUser = (user: UserView) => void;
 const AdminInner = () => {
   const [users, setUsers] = useState<UserView[] | null>(null);
   const addUser = (user: UserView) =>
@@ -155,19 +139,18 @@ const AdminInner = () => {
     });
 
   return (
-    <div className="container mx-auto py-10 grid">
+    <>
       <div className="flex justify-between items-center">
         <h2 className="text-xl font-bold mb-4">User Management</h2>
         <FormButton addUser={addUser} className={"self-center"} />
       </div>
       <Users users={users} setUsers={setUsers} />
-    </div>
+    </>
   );
 };
 
 export const Admin = () => (
-  <div>
-    <Header />
+  <Layout buttons={<Home />}>
     <AdminInner />
-  </div>
+  </Layout>
 );
