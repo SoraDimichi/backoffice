@@ -1,4 +1,3 @@
-import "./styles.css";
 import { useMemo } from "react";
 import { Label, Pie, PieChart } from "recharts";
 
