@@ -60,7 +60,6 @@ export const CreateUserForm = (p: CreateUserFormProps) => {
   }, [clearErrors, errors, watch]);
 
   const onSubmit = async (data: z.infer<typeof createUserSchema>) => {
-    console.log(data);
     await createUser(data)
       .then((id) =>
         addUser({
